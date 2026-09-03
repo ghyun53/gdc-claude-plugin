@@ -968,7 +968,7 @@
               <td data-en="Add the MCP server to a config file by hand">설정 파일에 MCP 서버 직접 등록</td>
             </tr>
             <tr>
-              <td data-en="MCP tools (31)">MCP 도구 31종</td>
+              <td data-en="MCP tools (34)">MCP 도구 34종</td>
               <td>○</td>
               <td>○</td>
             </tr>
@@ -1082,7 +1082,7 @@
         <tbody>
           <tr>
             <td data-en="MCP server">MCP 서버</td>
-            <td data-en="&lt;code&gt;gdc-local&lt;/code&gt; (stdio) · 31 tools · same in Code and Desktop"><code>gdc-local</code> (stdio) · 도구 31종 · Code·Desktop 공통</td>
+            <td data-en="&lt;code&gt;gdc-local&lt;/code&gt; (stdio) · 34 tools · same in Code and Desktop"><code>gdc-local</code> (stdio) · 도구 34종 · Code·Desktop 공통</td>
           </tr>
           <tr class="e-code">
             <td data-en="Slash commands">슬래시 커맨드</td>
@@ -1102,7 +1102,7 @@
           </tr>
           <tr>
             <td data-en="Version">버전</td>
-            <td>0.8.2</td>
+            <td>0.9.0</td>
           </tr>
         </tbody>
       </table>
@@ -1375,7 +1375,7 @@
                 <span class="mcp-name">plugin:gdc-claude-plugin:gdc-local</span>
                 <span class="mcp-ok">✓ Connected</span>
               </div>
-              <div class="ln dim" data-en="31 tools · 12 prompts">도구 31 · 프롬프트 12</div>
+              <div class="ln dim" data-en="34 tools · 12 prompts">도구 34 · 프롬프트 12</div>
             </div>
           </div>
         </div>
@@ -1939,8 +1939,8 @@
     <div class="sec-head" id="s4">
       <div class="sec-n">04</div>
       <h2 data-en="Tools">도구</h2>
-      <p data-en="31 MCP tools, identical in Code and Desktop.">
-        MCP 도구 31종이고 Code·Desktop 동일합니다.
+      <p data-en="34 MCP tools, identical in Code and Desktop.">
+        MCP 도구 34종이고 Code·Desktop 동일합니다.
       </p>
     </div>
 
@@ -1976,7 +1976,7 @@
           <tr><td><code>list_my_tasks</code></td><td data-en="My unfinished tasks (assignee, author or participant) — overdue and undated filters">내(담당·작성·참여) 미해결 태스크 — 마감 지남·날짜 미정 필터</td></tr>
           <tr><td><code>list_tasks</code></td><td data-en="One person’s tasks — name or user id">특정 담당자의 태스크 — 이름 또는 user id</td></tr>
           <tr><td><code>search_tasks</code></td><td data-en="Keyword and multi-filter search (status, priority, type, assignee, customer, end-date range). Finished tasks included">키워드·다중 필터 검색 (상태·우선순위·유형·담당자·고객사·종료일 범위). 완료 포함</td></tr>
-          <tr><td><code>get_task</code></td><td data-en="Task detail — sub, related and parent, plus actual dates, customer, weight, participants and comment count">태스크 상세 — 하위·연관·상위 + 실제 날짜·고객사·비중·관련자·댓글 수</td></tr>
+          <tr><td><code>get_task</code></td><td data-en="Task detail — sub, related and parent, plus actual dates, customer, weight, participants, comment count and linked pull requests">태스크 상세 — 하위·연관·상위 + 실제 날짜·고객사·비중·관련자·댓글 수·연결된 PR</td></tr>
           <tr><td><code>open_task</code></td><td data-en="Open the task’s web page in a new browser tab">태스크 웹 화면을 브라우저 새 탭으로 열기</td></tr>
         </tbody></table></div>
       </details>
@@ -2016,6 +2016,15 @@
           <tr><td><code>delete_task</code></td><td data-en="Delete — moved to trash and recoverable. Admin or above, asks first">삭제 — 휴지통으로 이동해 복구 가능. 관리자 이상, 확인 절차 있음</td></tr>
           <tr><td><code>restore_task</code></td><td data-en="Restore a task from the trash. Admin or above, asks first">휴지통 태스크 복구. 관리자 이상, 확인 절차 있음</td></tr>
           <tr><td><code>list_trashed_tasks</code></td><td data-en="This project’s trash — to find what to restore">현재 프로젝트 휴지통 목록 — 복구 대상 확인</td></tr>
+        </tbody></table></div>
+      </details>
+
+      <details>
+        <summary><span data-en="GitHub">GitHub 연동</span> <span class="cnt">3</span></summary>
+        <div class="tbl-wrap"><table><tbody>
+          <tr><td><code>list_task_pr_candidates</code></td><td data-en="Pull requests you can attach to a task, read live from GitHub, plus the repositories available for linking. A repository that could not be read comes back with the reason instead of failing the whole list">태스크에 붙일 수 있는 PR 후보를 GitHub에서 실시간 조회 + 연결 가능한 레포 목록. 읽지 못한 레포는 전체를 실패시키지 않고 사유와 함께 돌아옴</td></tr>
+          <tr><td><code>link_task_pr</code></td><td data-en="Attach a pull request to a task by its number. Give the repository as &lt;code&gt;owner/repo&lt;/code&gt;, or leave it out when the project has a single repository">PR 번호로 태스크에 연결. 레포는 <code>owner/repo</code>로 지정하고, 프로젝트에 레포가 하나면 생략 가능</td></tr>
+          <tr><td><code>unlink_task_pr</code></td><td data-en="Detach a pull request from a task. A link made automatically from the PR body comes back on the next PR edit unless you remove that reference from the body — the tool says so when it applies">태스크에서 PR 연결 해제. PR 본문으로 자동 연결된 것은 본문의 근거를 지우지 않으면 다음 PR 수정에서 다시 붙으며, 해당하면 도구가 알려줌</td></tr>
         </tbody></table></div>
       </details>
 
@@ -2111,7 +2120,7 @@
     </div>
 
     <div class="foot">
-      <span>GDC MCP <span data-en="plugin user guide">플러그인 사용 안내서</span> · v0.8.2</span>
+      <span>GDC MCP <span data-en="plugin user guide">플러그인 사용 안내서</span> · v0.9.0</span>
       <span>github.com/seonmikii/gdc-claude-plugin</span>
     </div>
 
