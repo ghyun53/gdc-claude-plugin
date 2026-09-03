@@ -44,6 +44,7 @@ client = GdcClient()
 
 _TASKS = "/api/tasks/tasks/"
 _MENTIONS = "/api/tasks/mentions/"
+_REPO_LINKS = "/api/integrations/github/repo-links/"
 
 # 사용자에게 보여줄 링크는 백엔드(API)가 아니라 프론트엔드(웹) 주소여야 한다.
 _WEB_URL = os.environ.get("GDC_WEB_URL", "http://localhost:5173").rstrip("/")
@@ -1381,6 +1382,7 @@ async def get_task(ctx: Context, task_id: int | str) -> dict:
       수정 전 현재 값 확인과 수정 후 반영 확인에 쓴다.
     - 그 밖에 creator_name(작성자)·tags(태그 이름)·mention_count(댓글 수)·is_archived(숨김)·
       created_at/updated_at을 함께 반환한다.
+    - pull_requests: 연결된 GitHub PR 목록(없으면 빈 배열). 해제에 쓰는 내부 id를 함께 준다.
     - enum_mismatch: 저장된 status/priority/task_type이 **프로젝트 enum에 없을 때만** 포함되는
       필드명 목록. 라벨은 프론트 i18n 폴백대로 번역되므로(`other`→'기타') 겉보기로는 정상이지만,
       이런 값은 상태 필터·미완료 조회에서 누락된다 → update_task로 프로젝트 값으로 고쳐야 한다.
@@ -1428,9 +1430,213 @@ async def get_task(ctx: Context, task_id: int | str) -> dict:
         "parent": _parent_summary(t),
         "sub_tasks": [_task_summary(s, check(s)) for s in (t.get("sub_tasks") or [])],
         "related_tasks": _related_tasks(t),
+        "pull_requests": [_pr_summary(pr) for pr in (t.get("github_pull_requests") or [])],
     }
     if mismatch:
         out["enum_mismatch"] = mismatch
+    return out
+
+
+# --- GitHub PR 연결 ------------------------------------------------------------
+# 서버는 연결에 repo_link_id(내부 id), 해제에 pr_id(PR 행 id)를 요구한다. 사용자는 둘 다
+# 모르므로 도구가 이름("owner/repo")·PR 번호로 받아 내부 id로 옮긴다.
+
+
+def _pr_summary(pr: dict) -> dict:
+    """태스크 상세/연결 응답의 PR 항목 → 도구 응답 모양(서버 필드명 유지)."""
+    return {
+        "id": pr.get("id"),
+        "number": pr.get("number"),
+        "title": pr.get("title"),
+        "url": pr.get("url"),
+        "repo_full_name": pr.get("repo_full_name"),
+        "state": pr.get("state"),
+        "merged_at": pr.get("merged_at"),
+        "base_branch": pr.get("base_branch"),
+        "source": pr.get("source"),
+    }
+
+
+def _pr_error(e: httpx.HTTPStatusError) -> Exception:
+    """서버가 담아 보낸 사용자용 문구(detail)를 그대로 올린다. 없으면 원 예외 그대로.
+
+    PR 연결 실패의 대부분(번호 없음·GitHub App 권한 미부여·타 프로젝트 연결)은 서버가
+    "무엇을 고쳐야 하는지"까지 써서 400으로 내려주므로, 상태코드로 뭉개면 안 된다.
+    """
+    if e.response.status_code in (400, 403, 404):
+        try:
+            detail = e.response.json().get("detail")
+        except ValueError:
+            detail = None
+        if detail:
+            return ValueError(str(detail))
+    return e
+
+
+def _usable_repo_links(links: list[dict]) -> list[dict]:
+    """PR을 붙일 수 있는 레포 연결만 남긴다(서버 판정 기준과 동일).
+
+    해제·일시중지된 연결에 PR을 붙이면 상태 갱신이 오지 않아 영원히 낡는다.
+    """
+    return [
+        link
+        for link in links
+        if not link.get("detached_at")
+        and link.get("sync_enabled")
+        and link.get("installation_active")
+    ]
+
+
+def _pick_repo_link(links: list[dict], repo: str | None) -> dict:
+    """레포 이름("owner/repo") → 레포 연결. 생략 시 후보가 1개면 자동 선택."""
+    usable = _usable_repo_links(links)
+    if not usable:
+        raise ValueError(
+            "이 프로젝트에 PR을 붙일 수 있는 GitHub 레포 연결이 없습니다. "
+            "GDC 웹의 프로젝트 설정에서 GitHub 레포를 먼저 연결하세요."
+        )
+    listing = ", ".join(link.get("full_name", "") for link in usable)
+    if repo:
+        name = repo.strip().lower()
+        hit = [link for link in usable if (link.get("full_name") or "").lower() == name]
+        if len(hit) == 1:
+            return hit[0]
+        raise ValueError(
+            f"레포 '{repo}'를 이 프로젝트의 GitHub 연결에서 찾을 수 없습니다. "
+            f"연결된 레포: {listing}"
+        )
+    if len(usable) == 1:
+        return usable[0]
+    raise ValueError(
+        f"이 프로젝트에 GitHub 레포 연결이 여러 개입니다. repo=\"owner/repo\"로 지정하세요. "
+        f"연결된 레포: {listing}"
+    )
+
+
+def _find_linked_pr(prs: list[dict], pr_number: int, repo: str | None) -> dict:
+    """연결된 PR 목록에서 번호(+레포)로 대상을 찾는다(해제용 내부 id 확보)."""
+    if not prs:
+        raise ValueError("이 태스크에 연결된 PR이 없습니다.")
+    hits = [pr for pr in prs if pr.get("number") == pr_number]
+    if repo:
+        name = repo.strip().lower()
+        hits = [pr for pr in hits if (pr.get("repo_full_name") or "").lower() == name]
+    if len(hits) == 1:
+        return hits[0]
+    listing = ", ".join(f"{pr.get('repo_full_name')}#{pr.get('number')}" for pr in prs)
+    if not hits:
+        raise ValueError(
+            f"#{pr_number}은(는) 이 태스크에 연결된 PR이 아닙니다. 연결된 PR: {listing}"
+        )
+    raise ValueError(
+        f"#{pr_number}이(가) 여러 레포에 있습니다. repo=\"owner/repo\"로 지정하세요. "
+        f"연결된 PR: {listing}"
+    )
+
+
+# 자동 연결(본문 파싱)을 끊어도 근거가 본문에 남아 있으면 다음 PR 수정에서 다시 붙는다.
+_AUTO_UNLINK_NOTE = {
+    "auto": "자동 연결이라 PR 본문의 태스크 링크(/tasks/{id})를 지우지 않으면 다음 PR 수정에서 다시 붙습니다.",
+    "auto_issue": "이슈 참조 파싱으로 붙은 연결이라 PR 본문의 이슈 참조(예: '관련 이슈: #15')를 지우지 않으면 다시 붙습니다.",
+}
+
+
+@mcp.tool
+async def list_task_pr_candidates(ctx: Context, task_id: int | str) -> dict:
+    """태스크에 연결할 수 있는 GitHub PR 후보를 조회한다(GitHub 실시간 조회).
+
+    task_id는 태스크 id(정수) 또는 제목(문자열).
+    - repos: 이 프로젝트에서 PR을 붙일 수 있는 레포 이름 목록(link_task_pr의 repo 값).
+    - candidates: 최근 PR 목록. linked=true면 이미 이 태스크에 붙어 있다.
+    - failed_repos: 조회에 실패한 레포와 사유(GitHub App 권한 미부여가 가장 흔하다).
+      일부 레포만 실패해도 나머지 후보는 그대로 나온다.
+    레포마다 GitHub을 호출하므로 응답이 느릴 수 있다.
+    """
+    resolved_id = await _resolve_task(ctx, task_id)
+    try:
+        data = client.get(f"{_TASKS}{resolved_id}/github-pr-candidates/").json()
+    except httpx.HTTPStatusError as e:
+        raise _pr_error(e) from e
+    return {
+        "task_id": resolved_id,
+        "repos": [r.get("repo_full_name") for r in (data.get("repos") or [])],
+        "candidates": [
+            {
+                "repo_full_name": c.get("repo_full_name"),
+                "number": c.get("number"),
+                "title": c.get("title"),
+                "state": c.get("state"),
+                "updated_at": c.get("updated_at"),
+                "linked": c.get("linked"),
+            }
+            for c in (data.get("candidates") or [])
+        ],
+        "failed_repos": data.get("failed_repos") or [],
+    }
+
+
+@mcp.tool
+async def link_task_pr(
+    ctx: Context, task_id: int | str, pr_number: int, repo: str | None = None
+) -> dict:
+    """GitHub PR을 태스크에 연결한다.
+
+    task_id는 태스크 id(정수) 또는 제목(문자열). pr_number는 PR 번호(#123의 123).
+    repo는 "owner/repo" 형식 — 프로젝트에 연결된 레포가 하나면 생략할 수 있고,
+    여러 개면 지정해야 한다(미지정 시 연결된 레포 목록을 오류로 안내한다).
+    후보 목록에 없는 오래된 PR도 번호만 알면 붙는다(확정 시 GitHub에서 다시 읽는다).
+    이미 자동 연결돼 있던 PR이면 수동으로 승격돼 이후 본문이 바뀌어도 유지된다.
+    """
+    resolved_id = await _resolve_task(ctx, task_id)
+    task = client.get(f"{_TASKS}{resolved_id}/").json()
+    links = client.get(_REPO_LINKS, params={"project": task["project"]}).json()
+    repo_link = _pick_repo_link(links, repo)
+    try:
+        pr = client.request(
+            "POST",
+            f"{_TASKS}{resolved_id}/github-pull-requests/",
+            json={"repo_link_id": repo_link["id"], "pr_number": pr_number},
+        ).json()
+    except httpx.HTTPStatusError as e:
+        raise _pr_error(e) from e
+    return {
+        "linked": True,
+        "task_id": resolved_id,
+        "task_url": _task_url(resolved_id),
+        "pull_request": _pr_summary(pr),
+    }
+
+
+@mcp.tool
+async def unlink_task_pr(
+    ctx: Context, task_id: int | str, pr_number: int, repo: str | None = None
+) -> dict:
+    """태스크에 연결된 GitHub PR 연결을 해제한다.
+
+    task_id는 태스크 id(정수) 또는 제목(문자열). pr_number는 PR 번호(#123의 123).
+    repo("owner/repo")는 같은 번호의 PR이 여러 레포에 붙어 있을 때만 필요하다.
+    **자동으로 붙은 연결(source=auto/auto_issue)은 PR 본문의 근거를 지우지 않으면
+    다음 PR 수정에서 다시 붙는다** — 이 경우 응답의 note로 안내한다.
+    """
+    resolved_id = await _resolve_task(ctx, task_id)
+    task = client.get(f"{_TASKS}{resolved_id}/").json()
+    prs = [_pr_summary(pr) for pr in (task.get("github_pull_requests") or [])]
+    target = _find_linked_pr(prs, pr_number, repo)
+    try:
+        client.request(
+            "DELETE", f"{_TASKS}{resolved_id}/github-pull-requests/{target['id']}/"
+        )
+    except httpx.HTTPStatusError as e:
+        raise _pr_error(e) from e
+    out = {
+        "unlinked": True,
+        "task_id": resolved_id,
+        "task_url": _task_url(resolved_id),
+        "pull_request": target,
+    }
+    note = _AUTO_UNLINK_NOTE.get(target.get("source"))
+    if note:
+        out["note"] = note
     return out
 
 

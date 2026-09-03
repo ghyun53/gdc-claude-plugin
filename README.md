@@ -7,7 +7,7 @@
 
 ## 구성 요소
 
-- **MCP 서버(`gdc-local`, stdio)** — 태스크 조회/생성/수정, 태스크 숨기기·삭제·복구, 태스크 댓글, 작업 요청 문서 연동, 진행률 동기화, 건의사항 제출 등 **도구 31종**. (Claude Code·Desktop 공통)
+- **MCP 서버(`gdc-local`, stdio)** — 태스크 조회/생성/수정, 태스크 숨기기·삭제·복구, 태스크 댓글, 작업 요청 문서 연동, 진행률 동기화, GitHub PR 연결, 건의사항 제출 등 **도구 34종**. (Claude Code·Desktop 공통)
 - **슬래시 커맨드 13종** — `/gdc-login` `/gdc-switch` `/gdc-my-tasks` `/gdc-tasks` `/gdc-task` `/gdc-task-new` `/gdc-task-from-doc` `/gdc-doc-from-task` `/gdc-link-task` `/gdc-apply` `/gdc-sync` `/gdc-suggest` `/gdc-update`. (**Claude Code 전용**)
 - **PostToolUse 훅** — `docs/requests/**/*.md` 편집 시 연결된 태스크 진행률 자동 동기화. (**Claude Code 전용**)
 
@@ -129,8 +129,11 @@ Claude Desktop은 **플러그인/마켓플레이스/슬래시 커맨드/훅을 �
 | `create_task` | 태스크 생성(담당자 기본=본인, 날짜·멤버 입력 검증, 완료 상태면 진행률·실제 종료일 자동 보정). 상태/우선순위/유형은 생략 시 **프로젝트 enum 기준 기본값**(WBS형은 `등록/보통/기타`)이 적용된다. 본문은 라벨 섹션 템플릿(평문)으로 넘기면 GDC 리치텍스트(HTML)로 변환 |
 | `update_task` | 태스크 부분 수정(날짜 순서·미래·멤버 검증, 상태/우선순위/유형은 프로젝트 enum 대조 후 차단). 본문은 같은 라벨 섹션 템플릿 — 통째 교체이므로 부분 수정은 `edit_task_description` 사용 |
 | `edit_task_description` | 태스크 본문 최소 편집 — `append_work`(블렛 추가)·`replace_section`(라벨 섹션만 교체, 인라인 이미지 보존) |
-| `get_task` | 태스크 상세 조회(하위·연관·상위 태스크 + 실제 날짜·고객사·비중·관련자·태그·댓글 수 등 수정 가능 필드 포함). 저장값이 프로젝트 enum에 없으면 `enum_mismatch`로 표시 |
+| `get_task` | 태스크 상세 조회(하위·연관·상위 태스크 + 실제 날짜·고객사·비중·관련자·태그·댓글 수 등 수정 가능 필드 포함). 저장값이 프로젝트 enum에 없으면 `enum_mismatch`로 표시. 연결된 GitHub PR은 `pull_requests`로 함께 반환 |
 | `open_task` | 태스크 웹 화면을 Chrome 새 탭으로 열기 |
+| `list_task_pr_candidates` | 태스크에 붙일 수 있는 GitHub PR 후보 조회(GitHub 실시간) + 연결 가능 레포 목록. 조회 실패 레포는 사유와 함께 `failed_repos` |
+| `link_task_pr` | GitHub PR을 태스크에 연결 — `repo`는 `"owner/repo"`(레포가 하나면 생략) |
+| `unlink_task_pr` | 태스크의 PR 연결 해제 — 자동 연결(`source=auto`/`auto_issue`)은 PR 본문의 근거를 지워야 다시 안 붙는다 |
 | `task_from_doc` | 작업 요청 문서로 태스크 생성 + 문서 frontmatter에 연동 기록(완료 상태면 진행률·실제 종료일 자동 보정) |
 | `link_task_to_doc` | 기존 태스크를 기존 문서와 연동(새로 만들지 않음) |
 | `sync_doc_progress` | 문서의 Phase/체크박스 진척을 연결된 태스크 진행률·상태·날짜에 동기화(`description` 전달 시 태스크 본문도 함께 갱신) |
