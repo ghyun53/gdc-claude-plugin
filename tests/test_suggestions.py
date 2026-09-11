@@ -113,3 +113,23 @@ def test_status_accepts_korean_label():
 def test_status_invalid_raises_with_options():
     with pytest.raises(ValueError, match="received"):
         _resolve_suggestion_status("접수중")
+
+
+# ---------------------------------------------------------------------------
+# HTML 본문 — 화면 편집기로 쓴 건의가 섞여 들어온다
+# ---------------------------------------------------------------------------
+
+def test_validate_content_measures_length_without_tags():
+    """태그까지 세면 서식 있는 본문이 2000자 제한에 억울하게 걸린다"""
+    html = "<p>" + "가" * 1999 + "</p>"
+    assert _validate_suggestion_content(html) == html
+
+
+def test_validate_content_rejects_html_with_too_little_text():
+    """태그만 잔뜩 있고 알맹이가 없는 본문은 막아야 한다"""
+    with pytest.raises(ValueError, match="5자"):
+        _validate_suggestion_content("<p><strong>짧다</strong></p>")
+
+
+def test_title_from_html_body_has_no_tags():
+    assert _suggestion_title("<p>검색 정렬이 이상합니다</p><p>둘째 줄</p>") == "검색 정렬이 이상합니다"

@@ -2557,14 +2557,16 @@ def _validate_suggestion_content(content: str) -> str:
     서버엔 하한이 없어(TextField) 빈 문장 제출을 막는 지점은 도구 레벨이 유일하다.
     """
     text = (content or "").strip()
-    if len(text) < _SUGGESTION_CONTENT_MIN:
+    # 화면 편집기가 붙은 뒤로 본문이 HTML일 수 있다 — 길이는 태그를 뺀 글자 수로 잰다
+    measured = html_to_text(text) if is_html(text) else text
+    if len(measured) < _SUGGESTION_CONTENT_MIN:
         raise ValueError(
             f"건의 본문은 최소 {_SUGGESTION_CONTENT_MIN}자 이상이어야 합니다. "
             "무엇이 어떻게 불편한지 한 문장으로라도 적어주세요."
         )
-    if len(text) > _SUGGESTION_CONTENT_MAX:
+    if len(measured) > _SUGGESTION_CONTENT_MAX:
         raise ValueError(
-            f"건의 본문은 최대 {_SUGGESTION_CONTENT_MAX}자까지 가능합니다(현재 {len(text)}자)."
+            f"건의 본문은 최대 {_SUGGESTION_CONTENT_MAX}자까지 가능합니다(현재 {len(measured)}자)."
         )
     return text
 
@@ -2574,7 +2576,8 @@ def _suggestion_title(content: str, title: str | None = None) -> str:
     explicit = (title or "").strip()
     if explicit:
         return explicit[:_SUGGESTION_TITLE_MAX]
-    for line in (content or "").splitlines():
+    source = html_to_text(content) if is_html(content) else (content or "")
+    for line in source.splitlines():
         collapsed = " ".join(line.split())
         if collapsed:
             return collapsed[:_SUGGESTION_AUTO_TITLE_MAX]
@@ -2734,7 +2737,8 @@ def get_suggestion(suggestion_id: int) -> dict:
     return {
         "id": s.get("id"),
         "title": s.get("title"),
-        "content": s.get("content"),
+        # 화면 편집기로 쓴 건의는 HTML로 저장된다 — 터미널에 태그가 그대로 나오지 않게 벗긴다
+        "content": html_to_text(s.get("content")),
         "category": s.get("category"),
         "category_label": _SUGGESTION_CATEGORY_LABELS.get(s.get("category"), s.get("category")),
         "status": s.get("status"),
