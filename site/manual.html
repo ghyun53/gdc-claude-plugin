@@ -53,6 +53,8 @@
   .toc i { font-family: var(--mono); font-style: normal; font-size: 11px; color: var(--faint); flex: none; }
   .toc ol ol a { padding: 4px 0 4px 26px; font-size: 12.5px; color: var(--faint); }
   .toc ol ol { padding-bottom: 6px; }
+  .toc ol ol ol a { padding: 3px 0 3px 40px; font-size: 12px; }
+  .toc ol ol ol { padding-bottom: 4px; }
   .toc a:hover { color: var(--ink); }
   .toc a.on { color: var(--ink); font-weight: 650; border-left-color: var(--accent); }
   .toc a.on i { color: var(--accent); }
@@ -201,7 +203,18 @@
     <li><a href="#tabs"><i>03</i>탭별 안내</a>
       <ol>
         <li><a href="#g-global">워크스페이스 전역</a></li>
-        <li><a href="#g-workspace">워크스페이스 종속</a></li>
+        <li><a href="#g-workspace">워크스페이스 종속</a>
+          <ol>
+            <li><a href="#t-dashboard">대시보드</a></li>
+            <li><a href="#t-weekly">주간 업무</a></li>
+            <li><a href="#t-reservations">리소스 예약</a></li>
+            <li><a href="#t-calendar">캘린더</a></li>
+            <li><a href="#t-customer-issues">고객 접수</a></li>
+            <li><a href="#t-customers">고객 관리</a></li>
+            <li><a href="#t-tasks">전체 태스크</a></li>
+            <li><a href="#t-projects">프로젝트</a></li>
+          </ol>
+        </li>
         <li><a href="#g-restricted">별도의 접근 권한 필요</a></li>
         <li><a href="#permissions">권한 설정에 관한 설명</a></li>
         <li><a href="#g-system">시스템 관리자용</a></li>
