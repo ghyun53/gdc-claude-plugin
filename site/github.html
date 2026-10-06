@@ -1,0 +1,1569 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GDC GitHub 연동 안내서</title>
+<meta name="description" content="GDC 워크스페이스에 GitHub을 연결하고, 프로젝트에 레포를 붙여 이슈·PR을 태스크와 함께 쓰는 방법을 운영 배포 기준으로 안내합니다.">
+
+<style>
+  /* Minimal reset. Stated explicitly so the page renders the same whether it is
+     served on its own or embedded somewhere that supplies its own reset. */
+  *, *::before, *::after { box-sizing: border-box; }
+  body, h1, h2, h3, h4, p, figure, blockquote, ol, ul, pre { margin: 0; }
+  ol, ul { padding: 0; }
+  img { max-width: 100%; }
+  button { font: inherit; color: inherit; }
+
+  :root {
+    --ground: #ffffff;
+    --alt: #f4f7fa;
+    --ink: #10151c;
+    --soft: #616d7d;
+    --faint: #8c97a6;
+    --rule: #e2e7ee;
+    --accent: #1f5ed0;
+    --mark: #d8412e;
+
+    --term-bg: #0b0f15;
+    --term-ink: #d6dde7;
+    --term-dim: #77879b;
+    --term-accent: #7fa6ff;
+    --term-ok: #63c58c;
+    --term-warn: #e0b062;
+    --term-rule: #212a36;
+
+    --sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+      "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    --mono: "JetBrains Mono", "Cascadia Mono", "Cascadia Code", Consolas,
+      "D2Coding", "SFMono-Regular", ui-monospace, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0d1117; --alt: #151b23; --ink: #e3e9f1; --soft: #8b96a6;
+      --faint: #6d7889; --rule: #232b36; --accent: #6f9dff; --mark: #ff6f5c;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0d1117; --alt: #151b23; --ink: #e3e9f1; --soft: #8b96a6;
+    --faint: #6d7889; --rule: #232b36; --accent: #6f9dff; --mark: #ff6f5c;
+  }
+
+  :root[data-theme="light"] {
+    --ground: #ffffff; --alt: #f4f7fa; --ink: #10151c; --soft: #616d7d;
+    --faint: #8c97a6; --rule: #e2e7ee; --accent: #1f5ed0; --mark: #d8412e;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1380px;
+    margin: 0 auto;
+    padding: 72px 32px 96px;
+    display: grid;
+    grid-template-columns: 216px minmax(0, 1fr);
+    gap: 64px;
+    align-items: start;
+  }
+
+  main { max-width: 1080px; }
+
+  /* ---------- environment / language switches ---------- */
+
+  /* Env gating hides only — it never sets a display value, so a revealed block
+     keeps whatever display its own rules give it (.steps is flex, .qa is grid…).
+     !important is what makes the gate immune to those later rules.
+     With no JS, data-env is absent and the Claude Code path is what shows. */
+  :root[data-env="code"] .e-desktop,
+  :root[data-env="desktop"] .e-code,
+  :root:not([data-env]) .e-desktop { display: none !important; }
+
+  .switches {
+    margin-top: 34px;
+    display: flex; flex-wrap: wrap; gap: 14px;
+    align-items: center; justify-content: space-between;
+  }
+
+  .tabs {
+    display: inline-flex; gap: 4px; padding: 4px;
+    border: 1px solid var(--rule); border-radius: 7px; background: var(--alt);
+  }
+
+  .tab {
+    font-family: var(--sans); font-size: 14px; font-weight: 650;
+    color: var(--soft); background: none; border: none; border-radius: 4px;
+    padding: 8px 16px; cursor: pointer; white-space: nowrap;
+    display: flex; align-items: baseline; gap: 7px;
+  }
+
+  .tab .sub-l { font-size: 12px; font-weight: 500; color: var(--faint); }
+  .tab:hover { color: var(--ink); }
+  .tab[aria-selected="true"] { background: var(--ground); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+  .tab[aria-selected="true"] .sub-l { color: var(--soft); }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .langs { display: inline-flex; gap: 2px; }
+
+  .langs button {
+    font-family: var(--sans); font-size: 12.5px; font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--faint); background: none;
+    border: 1px solid transparent; border-radius: 4px;
+    padding: 6px 11px; cursor: pointer;
+  }
+
+  .langs button:hover { color: var(--ink); }
+  .langs button[aria-pressed="true"] { color: var(--ink); border-color: var(--rule); background: var(--alt); }
+  .langs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .switch-hint { font-size: 13px; color: var(--faint); flex-basis: 100%; }
+
+  /* compact repeat of the env tabs further down the page */
+  .switches.mini { margin-top: 22px; }
+  .switches.mini .tab { padding: 6px 13px; font-size: 13px; }
+
+  /* ---------- table of contents ---------- */
+
+  .toc { position: sticky; top: 40px; align-self: start; max-height: calc(100vh - 80px); overflow-y: auto; }
+
+  .toc-h {
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--faint); padding-bottom: 12px;
+  }
+
+  .toc ol { list-style: none; display: flex; flex-direction: column; }
+
+  .toc a {
+    display: flex; gap: 10px; align-items: baseline;
+    padding: 8px 0 8px 13px;
+    border-left: 2px solid transparent;
+    font-size: 13.5px; color: var(--soft); text-decoration: none;
+  }
+
+  .toc i {
+    font-family: var(--mono); font-style: normal; font-size: 11px;
+    font-variant-numeric: tabular-nums; color: var(--faint);
+    flex: none;
+  }
+
+  /* nested sub-entries */
+  .toc ol ol a {
+    padding: 5px 0 5px 26px;
+    font-size: 12.5px; color: var(--faint);
+  }
+
+  .toc ol ol { padding-bottom: 6px; }
+
+  .toc a:hover { color: var(--ink); }
+  .toc a.on { color: var(--ink); font-weight: 650; border-left-color: var(--accent); }
+  .toc a.on i { color: var(--accent); }
+  .toc ol ol a.on { color: var(--ink); font-weight: 650; }
+  .toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+
+  /* ---------- masthead ---------- */
+
+  .masthead { display: flex; flex-direction: column; gap: 16px; }
+
+  .eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--soft);
+  }
+
+  h1 {
+    font-size: clamp(36px, 5.2vw, 54px);
+    line-height: 1.08; letter-spacing: -0.035em;
+    font-weight: 800; text-wrap: balance;
+  }
+
+  .lead { color: var(--soft); font-size: 17px; }
+  .lead strong { color: var(--ink); font-weight: 650; }
+
+  /* install block with copy */
+
+  .cmdbox {
+    margin-top: 30px;
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    background: var(--alt);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cmdbox pre {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 2;
+    padding: 18px 20px;
+    overflow-x: auto;
+    color: var(--ink);
+  }
+
+  .cmdbox .c { color: var(--faint); }
+
+  .copy {
+    position: absolute; top: 12px; right: 12px;
+    font-family: var(--sans); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--soft); background: var(--ground);
+    border: 1px solid var(--rule); border-radius: 3px;
+    padding: 5px 10px; cursor: pointer;
+  }
+
+  .copy:hover { color: var(--ink); border-color: var(--soft); }
+  .copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- section head ---------- */
+
+  .sec-head { margin-top: 96px; scroll-margin-top: 40px; }
+
+  .sec-n {
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    color: var(--accent); letter-spacing: 0.1em;
+  }
+
+  .sec-head h2 {
+    margin-top: 8px;
+    font-size: 34px; font-weight: 800; letter-spacing: -0.03em;
+  }
+
+  .sec-head p { margin-top: 10px; color: var(--soft); }
+
+  /* ---------- step block ---------- */
+
+  .block { margin-top: 64px; scroll-margin-top: 40px; }
+
+  .running {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.04em;
+    color: var(--faint); padding-bottom: 10px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .block h3 { margin-top: 30px; font-size: 26px; font-weight: 750; letter-spacing: -0.02em; }
+  .block .sub { margin-top: 8px; color: var(--soft); font-size: 16px; }
+
+  .cols {
+    margin-top: 34px;
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
+    gap: 56px;
+    align-items: start;
+  }
+
+  /* the instruction column is deliberately narrow, but steps carrying file
+     paths need room or every path wraps across three lines */
+  .cols.even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+
+  /* block with no accompanying screen — keep the reading measure sane */
+  .solo { margin-top: 34px; max-width: 720px; }
+
+  .steps { display: flex; flex-direction: column; gap: 22px; }
+  .step { display: grid; grid-template-columns: 26px 1fr; gap: 14px; }
+
+  .num {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--ink); color: var(--ground);
+    font-size: 13px; font-weight: 700;
+    display: grid; place-items: center; margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .step p { font-size: 15px; }
+
+  .step code, .caption code, .qa code, td code, .note code,
+  .sub code, .lead code, .quick code, .lex code, .group-d code, .group-skip code {
+    font-family: var(--mono); font-size: 13px;
+    background: var(--alt); border: 1px solid var(--rule);
+    border-radius: 3px; padding: 1px 5px; overflow-wrap: anywhere;
+  }
+
+  code.blk {
+    display: block; margin-top: 7px; padding: 7px 34px 7px 10px;
+    line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere;
+    color: var(--accent);
+    position: relative; cursor: pointer;
+  }
+
+  code.blk .c { color: var(--faint); }
+
+  /* click anywhere on a command block to copy it */
+  code.blk::after {
+    content: attr(data-copylabel);
+    position: absolute; top: 6px; right: 7px;
+    font-family: var(--sans); font-size: 10.5px; font-weight: 700;
+    color: var(--faint); background: var(--ground);
+    border: 1px solid var(--rule); border-radius: 3px;
+    padding: 1px 6px; line-height: 1.5;
+    opacity: 0; transition: opacity 0.12s ease-out;
+  }
+
+  code.blk:hover::after,
+  code.blk:focus-visible::after { opacity: 1; }
+
+  code.blk.copied::after {
+    content: attr(data-copiedlabel); opacity: 1;
+    color: var(--ground); background: var(--accent); border-color: var(--accent);
+  }
+
+  code.blk.failed::after {
+    content: attr(data-failedlabel); opacity: 1;
+    color: #fff; background: var(--mark); border-color: var(--mark);
+  }
+
+  code.blk:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* config-file locations — one copy target per OS, since the two paths
+     are never both useful to the same reader */
+  .paths { margin-top: 9px; display: flex; flex-direction: column; gap: 8px; }
+  .paths > div { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 10px; align-items: start; }
+  .paths .os { font-size: 12px; font-weight: 700; color: var(--faint); margin-top: 9px; }
+  .paths code.blk { margin-top: 0; }
+
+  @media (max-width: 640px) {
+    .paths > div { grid-template-columns: 1fr; gap: 2px; }
+    .paths .os { margin-top: 0; }
+  }
+
+  /* ---------- quick start strip ---------- */
+
+  .quick {
+    margin-top: 34px;
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    background: var(--alt);
+    padding: 22px 24px;
+  }
+
+  .quick-h {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent);
+  }
+
+  .quick-lead { margin-top: 6px; font-size: 14px; color: var(--soft); }
+
+  .quick-list {
+    list-style: none; margin-top: 18px;
+    display: flex; flex-direction: column; gap: 15px;
+  }
+
+  .quick-list li {
+    display: grid; grid-template-columns: 22px 92px minmax(0, 1fr);
+    gap: 12px; align-items: start;
+  }
+
+  .qn {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--ink); color: var(--ground);
+    font-size: 11.5px; font-weight: 700;
+    display: grid; place-items: center; margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .qt { font-size: 14.5px; font-weight: 650; margin-top: 3px; }
+  .quick code.blk { margin-top: 0; background: var(--ground); }
+  .qhint { display: block; margin-top: 7px; font-size: 13px; color: var(--soft); }
+
+  .quick-foot {
+    margin-top: 20px; padding-top: 16px;
+    border-top: 1px solid var(--rule);
+    font-size: 13.5px; color: var(--soft);
+  }
+
+  .quick-foot code { background: var(--ground); }
+  .quick-foot .q { color: var(--faint); }
+
+  @media (max-width: 640px) {
+    .quick-list li { grid-template-columns: 22px minmax(0, 1fr); }
+    .quick-list li .qn { grid-row: 1 / span 2; }
+    .quick-list li .qt,
+    .quick-list li code.blk,
+    .quick-list li > div { grid-column: 2; }
+  }
+
+  .caption {
+    margin-top: 30px; padding-top: 18px;
+    border-top: 1px solid var(--rule);
+    font-size: 13.5px; color: var(--faint);
+  }
+
+  .caption strong { color: var(--soft); font-weight: 650; }
+
+  /* natural-language alternative */
+
+  .alt-say {
+    margin-top: 12px; padding: 2px 0 2px 13px;
+    border-left: 2px solid var(--accent);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+
+  a.ext {
+    display: inline-block; margin-top: 6px;
+    font-size: 13.5px; color: var(--accent);
+    text-decoration: underline; text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    overflow-wrap: anywhere;
+  }
+
+  a.ext:hover { text-decoration-color: var(--accent); }
+  a.ext:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* in-page cross reference to another section */
+  a.xref {
+    color: var(--accent); font-weight: 650; text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+
+  a.xref:hover { text-decoration-color: var(--accent); }
+  a.xref:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+  .alt-say .lab { font-size: 11.5px; font-weight: 700; color: var(--accent); }
+  .alt-say .say { font-size: 13.5px; color: var(--soft); }
+  .alt-say .say .q { color: var(--faint); }
+
+  /* ---------- vocabulary strip ---------- */
+
+  .lex { margin-top: 30px; border-top: 1px solid var(--rule); }
+
+  .lex-row {
+    display: grid; grid-template-columns: 132px minmax(0, 1fr);
+    gap: 24px; padding: 16px 0; border-bottom: 1px solid var(--rule);
+    align-items: baseline;
+  }
+
+  .lex-t { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  .lex-t .tagline { display: block; margin-top: 3px; font-size: 11.5px; font-weight: 600; color: var(--faint); letter-spacing: 0.02em; }
+  .lex-d { font-size: 14.5px; color: var(--soft); }
+  .lex-d .q { color: var(--faint); }
+
+  @media (max-width: 640px) {
+    .lex-row { grid-template-columns: 1fr; gap: 6px; }
+  }
+
+  /* ---------- optional group (document workflow) ---------- */
+
+  .group {
+    margin-top: 72px;
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 5px;
+    padding: 30px 32px 36px;
+    background: color-mix(in srgb, var(--alt) 62%, transparent);
+    scroll-margin-top: 40px;
+  }
+
+  .group-tag {
+    display: inline-block;
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--accent); border: 1px solid var(--accent); border-radius: 999px;
+    padding: 3px 11px;
+  }
+
+  .group-t { margin-top: 14px; font-size: 27px; font-weight: 800; letter-spacing: -0.025em; }
+  .group-d { margin-top: 12px; color: var(--soft); font-size: 15.5px; max-width: 760px; }
+  .group-d + .group-d { margin-top: 10px; }
+  .group-d strong { color: var(--ink); font-weight: 650; }
+
+  .group-flow {
+    margin-top: 24px;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    border: 1px solid var(--rule); border-radius: 5px; overflow: hidden;
+    background: var(--ground);
+  }
+
+  .gf {
+    padding: 16px 18px; border-right: 1px solid var(--rule);
+    display: flex; flex-direction: column; gap: 5px;
+  }
+
+  .gf:last-child { border-right: none; }
+  .gf-n { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--accent); }
+  .gf-t { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+  .gf-d { font-size: 13px; color: var(--soft); }
+
+  .group-skip {
+    margin-top: 22px; padding: 15px 18px;
+    border: 1px dashed var(--rule); border-radius: 4px;
+    font-size: 14px; color: var(--soft);
+  }
+
+  .group-skip strong { color: var(--ink); font-weight: 700; }
+
+  .group .block:first-of-type { margin-top: 46px; }
+  .group .block { margin-top: 56px; }
+
+  @media (max-width: 900px) {
+    .group { padding: 24px 20px 28px; }
+    .group-flow { grid-template-columns: 1fr; }
+    .gf { border-right: none; border-bottom: 1px solid var(--rule); }
+    .gf:last-child { border-bottom: none; }
+  }
+
+  /* ---------- screens ---------- */
+
+  .screen { display: flex; flex-direction: column; gap: 10px; }
+
+  .screen-tag {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; color: var(--faint); letter-spacing: 0.02em;
+  }
+
+  .screen-tag i { width: 9px; height: 9px; border-radius: 50%; display: block; flex: none; }
+  .k-repro { background: var(--accent); }
+  .k-shot { background: #2f9e63; }
+
+  .shot {
+    display: block; width: 100%;
+    border: 1px solid var(--rule); border-radius: 6px;
+    cursor: zoom-in;
+  }
+
+  .shot:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  /* Click-to-enlarge overlay. Positioned absolutely rather than fixed on
+     purpose: this page also renders inside an auto-height frame that never
+     scrolls itself, where position:fixed would anchor to the top of the whole
+     document instead of the visible area. Anchoring the enlargement to the
+     thumbnail the reader just clicked keeps it on screen either way. */
+  .lightbox {
+    position: absolute; left: 0; top: 0; width: 100%;
+    background: rgba(8, 11, 16, 0.74);
+    z-index: 50;
+  }
+
+  .lightbox-inner {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  .lightbox img {
+    display: block; width: 100%; height: auto;
+    border-radius: 6px; box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+    background: var(--ground);
+  }
+
+  .lightbox-close {
+    align-self: flex-end;
+    font-family: var(--sans); font-size: 12.5px; font-weight: 700;
+    color: #fff; background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.32); border-radius: 999px;
+    padding: 5px 14px; cursor: pointer;
+  }
+
+  .lightbox-close:hover { background: rgba(255, 255, 255, 0.28); }
+  .lightbox-close:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+  .fig { margin-top: 32px; display: flex; flex-direction: column; gap: 10px; }
+  .fig figcaption { font-size: 13px; color: var(--faint); }
+
+  .term {
+    background: var(--term-bg); border: 1px solid var(--term-rule);
+    border-radius: 6px; overflow: hidden;
+    font-family: var(--mono); font-size: 13px; line-height: 1.7;
+    color: var(--term-ink);
+  }
+
+  .term-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 14px; border-bottom: 1px solid var(--term-rule);
+    color: var(--term-dim); font-size: 11.5px; letter-spacing: 0.03em;
+  }
+
+  .term-bar b { display: block; width: 8px; height: 8px; border-radius: 50%; background: #2b3646; }
+
+  .term-body {
+    padding: 18px; display: flex; flex-direction: column; gap: 14px;
+    position: relative;
+  }
+
+  /* callout badges sit outside each line — widen the rail so they aren't clipped */
+  .demo .term-body { padding: 22px 18px 20px 44px; }
+
+  .ln { position: relative; }
+  .dim { color: var(--term-dim); }
+  .ok { color: var(--term-ok); }
+  .warn { color: var(--term-warn); }
+  .acc { color: var(--term-accent); }
+  .prompt { color: var(--term-accent); }
+
+  /* text is typed in by JS — width-based tricks break on Korean glyph widths */
+  .typing { white-space: pre-wrap; }
+
+  .caret {
+    display: inline-block; width: 7px; height: 15px;
+    background: var(--term-accent); vertical-align: -2px; margin-left: 1px;
+  }
+
+  .pick {
+    border: 1px solid var(--term-rule); border-radius: 5px;
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;
+  }
+
+  /* /mcp connection row */
+  .mcp-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .mcp-name { font-family: var(--mono); font-size: 13px; color: var(--term-ink); overflow-wrap: anywhere; }
+
+  .mcp-ok {
+    font-family: var(--sans); font-size: 12.5px; font-weight: 700;
+    color: #0d2b1b; background: #4ade80;
+    border-radius: 6px; padding: 4px 11px; white-space: nowrap;
+  }
+
+  .pick-h { font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--term-dim); }
+  .pills { display: flex; flex-wrap: wrap; gap: 7px; }
+
+  .pill {
+    position: relative; border: 1px solid var(--term-rule); border-radius: 999px;
+    padding: 3px 11px; font-size: 12px; color: var(--term-dim); background: transparent;
+  }
+
+  .pill.on {
+    border-color: var(--term-accent); color: var(--term-bg);
+    background: var(--term-accent); font-weight: 600;
+  }
+
+  .replay {
+    align-self: flex-start; margin-top: 2px;
+    font-family: var(--sans); font-size: 12.5px; color: var(--soft);
+    background: none; border: 1px solid var(--rule); border-radius: 999px;
+    padding: 5px 14px; cursor: pointer;
+  }
+
+  .replay:hover { color: var(--ink); border-color: var(--soft); }
+  .replay:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* doc ↔ task sync visual */
+
+  .sync {
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    gap: 18px; align-items: center;
+    border: 1px solid var(--rule); border-radius: 6px;
+    padding: 22px; background: var(--ground);
+  }
+
+  .sync-panel { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+  .sync-h { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+  .sync-line { font-family: var(--mono); font-size: 12.5px; color: var(--soft); white-space: nowrap; }
+  .sync-line.done { color: var(--ink); }
+  .sync-arrow { font-family: var(--mono); font-size: 18px; color: var(--accent); }
+
+  .bar { height: 7px; border-radius: 999px; background: var(--rule); overflow: hidden; }
+  .bar span { display: block; height: 100%; width: 50%; background: var(--accent); border-radius: 999px; }
+  .bar-n { font-family: var(--mono); font-size: 12.5px; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* ---------- flow diagram ---------- */
+
+  .flow {
+    margin-top: 34px;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    border: 1px solid var(--rule); border-radius: 5px; overflow: hidden;
+  }
+
+  .flow-step {
+    padding: 22px 24px; border-right: 1px solid var(--rule);
+    display: flex; flex-direction: column; gap: 7px;
+  }
+
+  .flow-step:last-child { border-right: none; }
+  .flow-n { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 0.1em; }
+  .flow-t { font-weight: 750; font-size: 17px; letter-spacing: -0.01em; }
+  .flow-d { font-size: 13.5px; color: var(--soft); }
+  .flow-c { font-family: var(--mono); font-size: 11.5px; color: var(--faint); margin-top: 4px; overflow-wrap: anywhere; }
+  .flow-opt { font-size: 11.5px; font-weight: 700; color: var(--accent); letter-spacing: 0.02em; }
+
+  /* ---------- tables ---------- */
+
+  .tbl-wrap { overflow-x: auto; margin-top: 30px; }
+
+  table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 14.5px; }
+
+  th {
+    text-align: left; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--faint); font-weight: 700;
+    padding: 0 18px 11px 0; border-bottom: 1px solid var(--rule);
+  }
+
+  td {
+    padding: 13px 18px 13px 0; border-bottom: 1px solid var(--rule);
+    vertical-align: top; color: var(--soft);
+  }
+
+  td:first-child { color: var(--ink); }
+  td code { white-space: nowrap; }
+
+  /* ---------- details groups ---------- */
+
+  .tools { margin-top: 30px; border-top: 1px solid var(--rule); }
+
+  details { border-bottom: 1px solid var(--rule); }
+
+  summary {
+    cursor: pointer; padding: 16px 0;
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    font-weight: 650; font-size: 16px; list-style: none;
+  }
+
+  summary::-webkit-details-marker { display: none; }
+  summary .cnt { font-family: var(--mono); font-size: 12px; color: var(--faint); font-weight: 400; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  details[open] summary { color: var(--accent); }
+  details > .tbl-wrap { margin-top: 0; padding-bottom: 14px; }
+  details table { border-top: 1px solid var(--rule); }
+  details th { display: none; }
+
+  /* standalone comparison disclosure under the tabs */
+  /* environment comparison — sits directly under the tabs, deliberately quiet */
+  .envdiff { margin-top: 14px; }
+  .envdiff .tbl-wrap { margin-top: 0; }
+  .envdiff table { min-width: 460px; font-size: 12.5px; }
+  .envdiff th { font-size: 10px; padding-bottom: 8px; }
+  .envdiff td { padding: 8px 16px 8px 0; }
+
+  /* ---------- q&a ---------- */
+
+  .qa {
+    border-top: 1px solid var(--rule); padding: 24px 0;
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); gap: 48px;
+  }
+
+  .qa.last { border-bottom: 1px solid var(--rule); }
+  .q-t { font-weight: 700; font-size: 16.5px; letter-spacing: -0.01em; text-wrap: balance; }
+  .a-t { font-size: 14.5px; color: var(--soft); }
+  .a-t strong { color: var(--ink); font-weight: 650; }
+  .a-t p + p { margin-top: 10px; }
+
+  .note {
+    margin-top: 30px; border: 1px solid var(--rule); border-left: 3px solid var(--accent);
+    background: var(--alt); border-radius: 3px; padding: 18px 22px;
+    font-size: 14.5px; color: var(--soft);
+  }
+
+  .note strong { color: var(--ink); font-weight: 700; }
+  .note p + p { margin-top: 10px; }
+
+  /* ---------- further reading ---------- */
+
+  .more { margin-top: 26px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .more a { display: block; padding: 18px 20px; border: 1px solid var(--rule); border-radius: 8px; color: inherit; text-decoration: none; }
+  .more a:hover { border-color: var(--accent); }
+  .more a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .more b { display: flex; justify-content: space-between; gap: 12px; font-size: 16.5px; font-weight: 750; letter-spacing: -0.01em; color: var(--ink); }
+  .more b::after { content: "→"; color: var(--accent); }
+  .more span { display: block; margin-top: 6px; font-size: 14.5px; color: var(--soft); }
+  @media (max-width: 640px) { .more { grid-template-columns: 1fr; } }
+
+  /* ---------- footer ---------- */
+
+  .foot {
+    margin-top: 96px; padding-top: 22px; border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+    font-size: 12.5px; color: var(--faint);
+  }
+
+  /* ---------- animation ---------- */
+
+  @keyframes rise { from { opacity: 0; transform: translateY(9px); } }
+  @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+  @keyframes pick-on {
+    0%   { background: transparent; border-color: var(--term-rule); color: var(--term-dim); transform: scale(1); }
+    46%  { background: transparent; border-color: var(--term-rule); color: var(--term-dim); transform: scale(1); }
+    52%  { transform: scale(0.92); }
+    60%  { background: var(--term-accent); border-color: var(--term-accent); color: var(--term-bg); transform: scale(1); }
+    100% { background: var(--term-accent); border-color: var(--term-accent); color: var(--term-bg); transform: scale(1); }
+  }
+
+  @keyframes cursor-in {
+    0%   { opacity: 0; transform: translate(15px, 13px); }
+    30%  { opacity: 1; transform: translate(0, 0); }
+    100% { opacity: 0; transform: translate(0, 0); }
+  }
+
+  /* starts fully transparent so the pre-delay (backwards) state shows nothing */
+  @keyframes ripple {
+    0%   { opacity: 0; transform: scale(0.7); }
+    18%  { opacity: 0.85; transform: scale(0.85); }
+    100% { opacity: 0; transform: scale(1.4); }
+  }
+
+  .demo.playing .ln {
+    animation: rise 0.5s cubic-bezier(0.22, 0.7, 0.3, 1) backwards;
+    animation-delay: var(--d, 0s);
+  }
+
+  /* caret blinks while the command is being typed, then disappears */
+  .demo.playing .caret { animation: blink 0.8s steps(1, end) 2 both; animation-delay: 0.2s; }
+
+  .demo.playing .pill.on { animation: pick-on 0.95s ease-out backwards; animation-delay: var(--pd, 0s); }
+
+  .demo.playing .pill.on::before {
+    content: ""; position: absolute; left: 60%; top: 55%;
+    width: 12px; height: 16px; background: #ffffff;
+    clip-path: polygon(0 0, 0 100%, 27% 75%, 46% 100%, 66% 87%, 47% 62%, 100% 55%);
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.65));
+    pointer-events: none;
+    animation: cursor-in 1.1s ease-out backwards; animation-delay: var(--pd, 0s);
+  }
+
+  .demo.playing .pill.on::after {
+    content: ""; position: absolute; inset: -5px; border-radius: 999px;
+    border: 1.5px solid var(--term-accent); pointer-events: none;
+    animation: ripple 0.55s ease-out backwards;
+    animation-delay: calc(var(--pd, 0s) + 0.44s);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .demo.playing .ln, .demo.playing .caret,
+    .demo.playing .pill.on, .demo.playing .pill.on::after { animation: none; }
+    .demo.playing .pill.on::before { display: none; }
+    .replay { display: none; }
+  }
+
+  /* ---------- responsive ---------- */
+
+  @media (max-width: 1080px) {
+    .wrap { display: block; max-width: 1120px; }
+    .toc { display: none; }
+  }
+
+  @media (max-width: 900px) {
+    .wrap { padding: 48px 20px 72px; }
+    .cols { grid-template-columns: 1fr; gap: 32px; }
+    .flow { grid-template-columns: 1fr; }
+    .flow-step { border-right: none; border-bottom: 1px solid var(--rule); }
+    .flow-step:last-child { border-bottom: none; }
+    .qa { grid-template-columns: 1fr; gap: 10px; }
+    .sync { grid-template-columns: 1fr; }
+    .sync-arrow { transform: rotate(90deg); justify-self: center; }
+    .demo .term-body { padding-left: 18px; }
+    .switches { flex-direction: column; align-items: stretch; }
+    .tabs { justify-content: center; }
+    .langs { justify-content: flex-end; }
+  }
+
+  @media print {
+    .replay, .toc, .copy, .switches, .lightbox { display: none; }
+    .wrap { display: block; }
+    .demo .ln, .demo .caret,
+    .demo .pill.on, .demo .pill.on::after { animation: none !important; }
+    .demo .pill.on::before { display: none; }
+    .block, .qa { break-inside: avoid; }
+    details { break-inside: avoid; }
+    details:not([open]) > *:not(summary) { display: block; }
+  }
+</style>
+<style>
+  /* ---------- language-specific blocks ---------- */
+  :root[data-lang="ko"] .lang-en { display: none !important; }
+  :root[data-lang="en"] .lang-ko { display: none !important; }
+  /* short label column — keep each label on one line */
+  table.kv td:first-child { white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<script>
+  (function () {
+    var q = new URLSearchParams(location.search);
+    function pick(param, key, allowed) {
+      var v = q.get(param);
+      if (allowed.indexOf(v) < 0) {
+        try { v = localStorage.getItem(key); } catch (e) { v = null; }
+      }
+      return allowed.indexOf(v) < 0 ? allowed[0] : v;
+    }
+    document.documentElement.setAttribute("data-lang", pick("lang", "gdc-guide-lang", ["ko", "en"]));
+  })();
+</script>
+
+<div class="wrap">
+
+  <nav class="toc" aria-label="목차" data-en-label="Contents">
+    <div class="toc-h" data-en="Contents">목차</div>
+    <ol>
+      <li>
+        <a href="#s0"><i>00</i><span data-en="At a glance">한눈에 보기</span></a>
+      </li>
+      <li>
+        <a href="#s1"><i>01</i><span data-en="Connect GitHub to the workspace">워크스페이스에 GitHub 연결</span></a>
+        <ol>
+          <li><a href="#b11" data-en="Connect an installation">설치 연결하기</a></li>
+          <li><a href="#b12" data-en="Manage installations">설치 관리</a></li>
+        </ol>
+      </li>
+      <li>
+        <a href="#s2"><i>02</i><span data-en="Link a repository to a project">프로젝트에 레포 연결</span></a>
+        <ol>
+          <li><a href="#b21" data-en="Add a repository">레포 추가</a></li>
+          <li><a href="#b22" data-en="Mapping settings">매핑 설정</a></li>
+          <li><a href="#b23" data-en="Import existing issues">기존 이슈 가져오기</a></li>
+          <li><a href="#b24" data-en="Manage the link">연결 관리</a></li>
+        </ol>
+      </li>
+      <li>
+        <a href="#s3"><i>03</i><span data-en="Connect your GitHub account">내 GitHub 계정 연결</span></a>
+      </li>
+      <li>
+        <a href="#s4"><i>04</i><span data-en="Using it from a task">태스크에서 사용하기</span></a>
+        <ol>
+          <li><a href="#b41" data-en="What syncs, and which way">동기화 방향</a></li>
+          <li><a href="#b42" data-en="Publish as a GitHub issue">GitHub 이슈로 발행</a></li>
+          <li><a href="#b43" data-en="Link a pull request">PR 연결</a></li>
+          <li><a href="#b44" data-en="Automatic PR links">PR 자동 연결</a></li>
+        </ol>
+      </li>
+      <li>
+        <a href="#s5"><i>05</i><span data-en="Troubleshooting">자주 묻는 문제</span></a>
+      </li>
+      <li>
+        <a href="#s6"><i>06</i><span data-en="Learn more">더 알아보기</span></a>
+      </li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <header class="masthead">
+      <div class="eyebrow">GDC <span>GITHUB</span></div>
+      <h1 data-en="GitHub integration guide">GitHub 연동 안내서</h1>
+      <p class="lead" data-en="Connect GitHub to a GDC workspace, link repositories to projects, and GitHub issues and GDC tasks stay in step. Work through it in order: &lt;strong&gt;workspace → project → your account → tasks&lt;/strong&gt;.">GDC 워크스페이스에 GitHub을 연결하고 프로젝트에 레포를 붙이면, GitHub 이슈와 GDC 태스크가 함께 움직입니다. <strong>워크스페이스 → 프로젝트 → 내 계정 → 태스크</strong> 순서로 진행합니다.</p>
+    </header>
+
+    <div class="switches">
+      <div class="langs" aria-label="Language">
+        <button type="button" data-lang-pick="ko" aria-pressed="true">한국어</button>
+        <button type="button" data-lang-pick="en" aria-pressed="false">English</button>
+      </div>
+
+      <p class="switch-hint" data-en="GDC’s UI is available in Korean and English — button names in this guide follow the language you pick.">GDC 화면은 한국어와 영어를 모두 지원합니다. 이 안내서의 버튼 이름은 선택한 언어의 화면 표기를 따릅니다.</p>
+    </div>
+
+    <!-- ========== 00 at a glance ========== -->
+
+    <div class="sec-head" id="s0">
+      <div class="sec-n">00</div>
+      <h2 data-en="At a glance">한눈에 보기</h2>
+      <p data-en="Who does each step, and where. Steps 1 and 2 are a one-off per workspace and project; step 3 is once per person.">단계마다 누가, 어디서 하는지 정리했습니다. 1·2단계는 워크스페이스·프로젝트마다 한 번, 3단계는 사람마다 한 번 합니다.</p>
+    </div>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th data-en="Step">단계</th>
+            <th data-en="Where">위치</th>
+            <th data-en="Who">권한</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-en="1 Connect GitHub to the workspace">1 워크스페이스에 GitHub 연결</td>
+            <td data-en="Workspace Settings → Other → GitHub installations">워크스페이스 설정 → 기타 → GitHub 설치 연결</td>
+            <td data-en="Workspace owner or manager">워크스페이스 소유자·관리자</td>
+          </tr>
+          <tr>
+            <td data-en="2 Link a repository to a project">2 프로젝트에 레포 연결</td>
+            <td data-en="Project → Integrations → GitHub repository integration">프로젝트 → 연동 → GitHub 레포 연동</td>
+            <td data-en="Project admin — picking a new repository also needs workspace owner or manager">프로젝트 관리자 (새 레포를 고를 때는 워크스페이스 소유자·관리자 권한도 필요)</td>
+          </tr>
+          <tr>
+            <td data-en="3 Connect your GitHub account">3 내 GitHub 계정 연결</td>
+            <td data-en="Settings → Integrations → GitHub account">설정 → 연동 → GitHub 계정 연결</td>
+            <td data-en="Everyone">모든 사용자</td>
+          </tr>
+          <tr>
+            <td data-en="4 Publish issues, link PRs">4 이슈 발행·PR 연결</td>
+            <td data-en="Task detail → GitHub section">태스크 상세 → GitHub 영역</td>
+            <td data-en="Anyone who can edit the project (not viewers)">프로젝트 편집 권한이 있는 사용자 (뷰어 제외)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <p data-en="&lt;strong&gt;Which repositories can be linked?&lt;/strong&gt; Only repositories the GDC GitHub app is installed on and allowed to access — today that is the Gemiso (&lt;code&gt;gemiso-dev&lt;/code&gt;) organisation. If the app was installed for selected repositories only, just those appear."><strong>어떤 레포를 연결할 수 있나요?</strong> GDC GitHub 앱이 설치되어 있고 앱에 접근이 허용된 레포만 연결할 수 있습니다. 현재는 제머나이소프트(<code>gemiso-dev</code>) 조직이 대상입니다. 앱을 '선택한 레포'로 설치했다면 그 레포만 보입니다.</p>
+    </div>
+
+    <!-- ========== 01 workspace ========== -->
+
+    <div class="sec-head" id="s1">
+      <div class="sec-n">01</div>
+      <h2 data-en="Connect GitHub to the workspace">워크스페이스에 GitHub 연결</h2>
+      <p data-en="Connect the GitHub account or organisation that has the GDC app installed to this workspace. Only workspace owners and managers can see this screen.">GDC 앱이 설치된 GitHub 계정·조직을 워크스페이스에 연결합니다. 워크스페이스 소유자·관리자에게만 보이는 화면입니다.</p>
+    </div>
+
+    <section class="block" id="b11">
+      <div class="running"><span data-en="1 Connect GitHub to the workspace · 1-1 Connect an installation">1 워크스페이스에 GitHub 연결 · 1-1 설치 연결하기</span></div>
+      <h3 data-en="Connect an installation">설치 연결하기</h3>
+      <p class="sub" data-en="Sign in to GitHub once and every installation your account can see is linked.">GitHub에 한 번 로그인해 승인하면, 내 계정이 볼 수 있는 설치가 워크스페이스에 연결됩니다.</p>
+
+      <div class="solo">
+        <ol class="steps">
+          <li class="step">
+            <div class="num">1</div>
+            <p data-en="Open &lt;strong&gt;Workspace Settings&lt;/strong&gt; from the sidebar, then the &lt;strong&gt;Other&lt;/strong&gt; tab.">사이드바에서 <strong>워크스페이스 설정</strong>을 열고 <strong>기타</strong> 탭으로 이동합니다.</p>
+          </li>
+          <li class="step">
+            <div class="num">2</div>
+            <p data-en="On the &lt;strong&gt;GitHub installations&lt;/strong&gt; card, click &lt;strong&gt;Connect an installation&lt;/strong&gt; (or &lt;strong&gt;Add installation&lt;/strong&gt; if one is already there)."><strong>GitHub 설치 연결</strong> 카드에서 <strong>설치 연결</strong>을 누릅니다. 이미 연결된 설치가 있으면 <strong>설치 추가</strong>를 누릅니다.</p>
+          </li>
+          <li class="step">
+            <div class="num">3</div>
+            <p data-en="Approve on the GitHub screen. You come back to the Other tab and see &lt;strong&gt;“GitHub 설치를 연결했습니다.”&lt;/strong&gt; (installation connected).">GitHub 화면에서 승인합니다. 기타 탭으로 돌아와 <strong>「GitHub 설치를 연결했습니다.」</strong>가 보이면 완료입니다.</p>
+          </li>
+          <li class="step">
+            <div class="num">4</div>
+            <p data-en="If the app is not installed yet you get “연결할 수 있는 GitHub 설치가 없습니다.” (nothing to connect). Click &lt;strong&gt;Install the app on GitHub&lt;/strong&gt; — installing on an organisation needs that organisation’s owner.">앱이 아직 설치되지 않았다면 「연결할 수 있는 GitHub 설치가 없습니다.」가 나옵니다. <strong>GitHub에서 앱 설치</strong>를 눌러 설치합니다. 조직에 설치하려면 그 조직의 Owner 권한이 필요합니다.</p>
+          </li>
+        </ol>
+        <p class="caption" data-en="Approving here also links your own GitHub account (step 3). If you approve with a different GitHub account, the account linked to GDC is replaced and the card tells you so.">이 승인으로 내 GitHub 계정 연결(3단계)도 함께 이루어집니다. 다른 GitHub 계정으로 승인하면 GDC에 연결된 계정이 그 계정으로 바뀌며, 카드에 안내가 표시됩니다.</p>
+      </div>
+    </section>
+
+    <section class="block" id="b12">
+      <div class="running"><span data-en="1 Connect GitHub to the workspace · 1-2 Manage installations">1 워크스페이스에 GitHub 연결 · 1-2 설치 관리</span></div>
+      <h3 data-en="Manage installations">설치 관리</h3>
+      <p class="sub" data-en="Each installation on the card shows its account, status, and how many repositories and issues it carries.">카드에는 설치마다 계정·상태·레포 범위와 연결된 레포·가져온 이슈 수가 표시됩니다.</p>
+
+      <div class="solo">
+        <ol class="steps">
+          <li class="step">
+            <div class="num">1</div>
+            <p data-en="&lt;strong&gt;Remove installation&lt;/strong&gt; ends the link for every project in the workspace that uses it. Repository links and issue links are kept, and &lt;strong&gt;Reconnect&lt;/strong&gt; restores them as they were."><strong>설치 해제</strong>는 이 설치를 쓰는 워크스페이스의 모든 프로젝트 연동을 끝냅니다. 레포 연결과 이슈 연결은 보관되며, <strong>다시 연결</strong>을 누르면 그대로 복원됩니다.</p>
+          </li>
+          <li class="step">
+            <div class="num">2</div>
+            <p data-en="Ticking &lt;strong&gt;Also remove the app on GitHub&lt;/strong&gt; revokes GDC’s repository access completely; using it again means reinstalling the app, which needs organisation admin rights."><strong>GitHub에서 앱도 제거하기</strong>를 함께 선택하면 GDC의 레포 접근 권한이 완전히 회수됩니다. 다시 쓰려면 앱을 새로 설치해야 하며 조직 관리자 권한이 필요합니다.</p>
+          </li>
+          <li class="step">
+            <div class="num">3</div>
+            <p data-en="One installation can be connected to &lt;strong&gt;one workspace only&lt;/strong&gt;. To move it, remove it from the other workspace first.">설치 하나는 <strong>워크스페이스 하나에만</strong> 연결할 수 있습니다. 다른 워크스페이스로 옮기려면 기존 워크스페이스에서 먼저 해제합니다.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ========== 02 project ========== -->
+
+    <div class="sec-head" id="s2">
+      <div class="sec-n">02</div>
+      <h2 data-en="Link a repository to a project">프로젝트에 레포 연결</h2>
+      <p data-en="Link repositories from the project’s Integrations tab. This works for both issue-tracking and WBS projects. A project can have several repositories, but a repository belongs to one project only.">프로젝트의 연동 탭에서 레포를 연결합니다. 이슈 관리·WBS 프로젝트 모두 지원합니다. 프로젝트 하나에 레포를 여러 개 연결할 수 있지만, 레포 하나는 프로젝트 하나에만 연결됩니다.</p>
+    </div>
+
+    <section class="block" id="b21">
+      <div class="running"><span data-en="2 Link a repository · 2-1 Add a repository">2 프로젝트에 레포 연결 · 2-1 레포 추가</span></div>
+      <h3 data-en="Add a repository">레포 추가</h3>
+      <p class="sub" data-en="Pick a repository from the workspace’s installation.">워크스페이스에 연결된 설치에서 레포를 고릅니다.</p>
+
+      <div class="solo">
+        <ol class="steps">
+          <li class="step">
+            <div class="num">1</div>
+            <p data-en="In the project, open the &lt;strong&gt;Integrations&lt;/strong&gt; tab and find &lt;strong&gt;GitHub repository integration&lt;/strong&gt;.">프로젝트에서 <strong>연동</strong> 탭을 열고 <strong>GitHub 레포 연동</strong> 영역을 찾습니다.</p>
+          </li>
+          <li class="step">
+            <div class="num">2</div>
+            <p data-en="Click &lt;strong&gt;Add repository&lt;/strong&gt;, pick the repository, then &lt;strong&gt;Next&lt;/strong&gt;. Repositories already linked are greyed out as “연결됨” (linked)."><strong>레포 추가</strong>를 누르고 레포를 고른 뒤 <strong>다음</strong>을 누릅니다. 이미 연결된 레포는 「연결됨」으로 표시되어 고를 수 없습니다.</p>
+          </li>
+          <li class="step">
+            <div class="num">3</div>
+            <p data-en="The mapping settings dialog opens next (2-2). Saving it completes the link.">이어서 매핑 설정 창(2-2)이 열립니다. 매핑을 저장하면 연결이 완료됩니다.</p>
+          </li>
+        </ol>
+        <p class="caption" data-en="The repository list needs workspace owner or manager rights. A project admin without them sees “레포를 찾을 수 없습니다.” (no repositories) — ask a workspace manager to add it. When creating a new project you can also tick “GitHub 레포 연동” to link one main repository straight away.">레포 목록은 워크스페이스 소유자·관리자 권한이 있어야 보입니다. 권한이 없는 프로젝트 관리자에게는 「레포를 찾을 수 없습니다.」로 나오므로 워크스페이스 관리자에게 연결을 요청합니다. 새 프로젝트를 만들 때 「GitHub 레포 연동」을 선택해 대표 레포 하나를 바로 연결할 수도 있습니다.</p>
+      </div>
+    </section>
+
+    <section class="block" id="b22">
+      <div class="running"><span data-en="2 Link a repository · 2-2 Mapping settings">2 프로젝트에 레포 연결 · 2-2 매핑 설정</span></div>
+      <h3 data-en="Mapping settings">매핑 설정</h3>
+      <p class="sub" data-en="Match the repository’s users, labels, and states to GDC values. Sensible defaults are filled in — check them and save.">레포의 사용자·라벨·상태를 GDC 항목과 연결합니다. 기본값이 채워져 있으니 확인 후 저장합니다.</p>
+
+      <div class="tbl-wrap">
+        <table class="kv">
+          <thead>
+            <tr>
+              <th data-en="Item">항목</th>
+              <th data-en="What it does · default">내용 · 기본값</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-en="Users">사용자</td>
+              <td data-en="Authors and assignees seen in the repository’s issues. People who connected their GitHub account (step 3) are matched automatically; the rest default to unmapped. Non-members can only be mapped as authors.">레포 이슈에 등장한 작성자·담당자입니다. GitHub 계정을 연결한 사람(3단계)은 자동으로 매칭되고, 나머지는 '미매핑'이 기본값입니다. 프로젝트 멤버가 아니면 작성자에만 매핑됩니다.</td>
+            </tr>
+            <tr>
+              <td data-en="Labels">라벨</td>
+              <td data-en="Each label becomes a Tag, Type, Priority, or is Not mapped. Labels like &lt;code&gt;type:…&lt;/code&gt; and &lt;code&gt;priority:…&lt;/code&gt; go to Type and Priority when the project has that value; everything else becomes a tag. You can create a missing type or priority right here.">라벨마다 태그·유형·우선순위·매핑 안 함 중 하나로 지정합니다. <code>type:…</code>·<code>priority:…</code> 라벨은 프로젝트에 같은 값이 있으면 유형·우선순위로, 나머지는 태그로 지정됩니다. 없는 유형·우선순위는 이 창에서 바로 만들 수 있습니다.</td>
+            </tr>
+            <tr>
+              <td data-en="Status">상태</td>
+              <td data-en="Which GDC status an open issue and a closed issue become. Defaults to a “planned” status for open and a “done” status for closed.">열린 이슈와 닫힌 이슈를 각각 어떤 GDC 상태로 둘지 정합니다. 열림은 예정 계열, 닫힘은 완료 계열 상태가 기본값입니다.</td>
+            </tr>
+            <tr>
+              <td data-en="Unmapped assignee">미매핑 담당자</td>
+              <td data-en="What happens to an assignee with no match: &lt;strong&gt;Assign to bot account&lt;/strong&gt; (default) or &lt;strong&gt;Leave empty&lt;/strong&gt;. Unmatched authors always go to the bot account.">매칭되지 않은 담당자를 <strong>봇 계정에 귀속</strong>(기본값)할지 <strong>비워둠</strong>으로 둘지 정합니다. 매칭되지 않은 작성자는 항상 봇 계정으로 들어갑니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="caption" data-en="If the project already has other repositories, you can tick an option to apply the user and status mapping to them too (labels are not copied). Opening this dialog adds matched workspace members to the project as members.">프로젝트에 다른 레포가 있으면 사용자·상태 매핑을 다른 레포에도 적용하는 옵션이 나타납니다(라벨은 제외). 이 창을 열면 매칭된 워크스페이스 멤버가 프로젝트 멤버로 추가됩니다.</p>
+    </section>
+
+    <section class="block" id="b23">
+      <div class="running"><span data-en="2 Link a repository · 2-3 Import existing issues">2 프로젝트에 레포 연결 · 2-3 기존 이슈 가져오기</span></div>
+      <h3 data-en="Import existing issues">기존 이슈 가져오기</h3>
+      <p class="sub" data-en="Once the mapping is saved, choose what to do with the issues already in the repository.">매핑을 저장하면 레포에 이미 있는 이슈를 어떻게 할지 묻는 창이 열립니다.</p>
+
+      <div class="solo">
+        <ol class="steps">
+          <li class="step">
+            <div class="num">1</div>
+            <p data-en="&lt;strong&gt;Import everything&lt;/strong&gt; (default) — every issue becomes a task. Large repositories can take a while; progress shows on the repository row."><strong>전부 가져오기</strong>(기본값) — 이슈 전체를 태스크로 만듭니다. 이슈가 많으면 시간이 걸리며, 진행 상황은 레포 줄에 표시됩니다.</p>
+          </li>
+          <li class="step">
+            <div class="num">2</div>
+            <p data-en="&lt;strong&gt;Don’t import existing issues&lt;/strong&gt; — only issues opened or changed from now on come in. You can still bring everything in later with &lt;strong&gt;Import all&lt;/strong&gt;."><strong>기존 이슈는 가져오지 않기</strong> — 연동 이후 새로 열리거나 수정되는 이슈만 들어옵니다. 나중에 <strong>전체 가져오기</strong>로 언제든 전부 가져올 수 있습니다.</p>
+          </li>
+          <li class="step">
+            <div class="num">3</div>
+            <p data-en="&lt;strong&gt;Decide later&lt;/strong&gt; — the row shows &lt;strong&gt;Set scope&lt;/strong&gt; until you choose."><strong>나중에 결정</strong> — 정할 때까지 레포 줄에 <strong>범위 정하기</strong> 버튼이 남습니다.</p>
+          </li>
+        </ol>
+        <p class="caption" data-en="After this, changes on GitHub arrive in real time — the row shows the “Live” badge. GitHub sub-issues come in as GDC subtasks.">이후 GitHub의 변경은 실시간으로 반영되며, 레포 줄에 「실시간」 배지가 표시됩니다. GitHub의 하위 이슈는 GDC 하위 태스크로 들어옵니다.</p>
+      </div>
+    </section>
+
+    <section class="block" id="b24">
+      <div class="running"><span data-en="2 Link a repository · 2-4 Manage the link">2 프로젝트에 레포 연결 · 2-4 연결 관리</span></div>
+      <h3 data-en="Manage the link">연결 관리</h3>
+      <p class="sub" data-en="Each linked repository row has these actions.">연결된 레포 줄에서 다음 작업을 할 수 있습니다.</p>
+
+      <div class="tbl-wrap">
+        <table class="kv">
+          <thead>
+            <tr>
+              <th data-en="Action">작업</th>
+              <th data-en="What it does">설명</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-en="Import changes">변경분 가져오기</td>
+              <td data-en="Pulls in what changed since the last import.">마지막 가져오기 이후 바뀐 내용을 가져옵니다.</td>
+            </tr>
+            <tr>
+              <td data-en="Import all (⋯ menu)">전체 가져오기 (⋯ 메뉴)</td>
+              <td data-en="Re-imports the whole repository, re-syncing issues already imported. Use it after changing the mapping or after more people connect their GitHub accounts.">레포 전체를 처음부터 다시 가져오며, 이미 가져온 이슈도 다시 동기화합니다. 매핑을 바꿨거나 GitHub 계정을 새로 연결한 사람이 있을 때 사용합니다.</td>
+            </tr>
+            <tr>
+              <td data-en="Mapping settings">매핑 설정</td>
+              <td data-en="Reopens the mapping from 2-2.">2-2의 매핑 설정을 다시 엽니다.</td>
+            </tr>
+            <tr>
+              <td data-en="Pause sync / Resume sync">동기화 일시중지 / 재개</td>
+              <td data-en="While paused nothing comes in from GitHub and nothing goes out from GDC; tasks already imported stay. Resuming catches up on what changed on GitHub meanwhile.">멈춘 동안 GitHub의 변경이 들어오지 않고 GDC의 변경도 GitHub에 반영되지 않습니다. 이미 가져온 태스크는 그대로이며, 재개하면 그동안 GitHub에서 바뀐 내용을 다시 가져옵니다.</td>
+            </tr>
+            <tr>
+              <td data-en="Disconnect">연동 해제</td>
+              <td data-en="Ends the link. Imported tasks and linked PRs stay, unless you tick &lt;strong&gt;Also move imported tasks to trash&lt;/strong&gt;. Disconnected repositories wait under “해제된 연결” (disconnected links), where &lt;strong&gt;Reconnect&lt;/strong&gt; brings them back with everything that changed, and &lt;strong&gt;Clean up&lt;/strong&gt; trashes the imported tasks and frees the repository for another project.">연동을 끝냅니다. 가져온 태스크와 연결된 PR은 그대로 남으며, <strong>가져온 태스크도 휴지통으로 보내기</strong>를 선택하면 함께 휴지통으로 갑니다. 해제한 레포는 「해제된 연결」에 남아, <strong>다시 연결</strong>하면 그동안 바뀐 내용까지 가져오고 <strong>완전히 정리</strong>하면 가져온 태스크를 휴지통으로 보내고 레포를 다른 프로젝트에 연결할 수 있게 됩니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== 03 account ========== -->
+
+    <div class="sec-head" id="s3">
+      <div class="sec-n">03</div>
+      <h2 data-en="Connect your GitHub account">내 GitHub 계정 연결</h2>
+      <p data-en="Tell GDC which GitHub account is yours, so you are recognised as author and assignee when issues come in or go out. Everyone should do this once.">어떤 GitHub 계정이 나인지 GDC에 알려 두면, 이슈를 가져오거나 발행할 때 작성자·담당자로 인식됩니다. 사람마다 한 번 해 둡니다.</p>
+    </div>
+
+    <section class="block" id="b31">
+      <div class="running"><span data-en="3 Connect your GitHub account">3 내 GitHub 계정 연결</span></div>
+      <h3 data-en="Connect from Settings">설정에서 연결</h3>
+      <p class="sub" data-en="One GitHub sign-in and approval.">GitHub에 로그인해 한 번 승인하면 됩니다.</p>
+
+      <div class="solo">
+        <ol class="steps">
+          <li class="step">
+            <div class="num">1</div>
+            <p data-en="Open &lt;strong&gt;Settings&lt;/strong&gt; from the profile menu and go to the &lt;strong&gt;Integrations&lt;/strong&gt; tab.">프로필 메뉴에서 <strong>설정</strong>을 열고 <strong>연동</strong> 탭으로 이동합니다.</p>
+          </li>
+          <li class="step">
+            <div class="num">2</div>
+            <p data-en="On the &lt;strong&gt;GitHub account&lt;/strong&gt; card, click &lt;strong&gt;Connect GitHub&lt;/strong&gt; and approve on GitHub."><strong>GitHub 계정 연결</strong> 카드에서 <strong>GitHub 계정 연결</strong> 버튼을 누르고 GitHub에서 승인합니다.</p>
+          </li>
+          <li class="step">
+            <div class="num">3</div>
+            <p data-en="Back in GDC the card shows the linked account as &lt;code&gt;@login&lt;/code&gt;. To stop, click &lt;strong&gt;Disconnect&lt;/strong&gt; — tasks already imported stay as they are.">GDC로 돌아오면 카드에 연결된 계정(<code>@아이디</code>)이 표시됩니다. 끊으려면 <strong>연결 해제</strong>를 누릅니다. 이미 가져온 태스크는 그대로 남습니다.</p>
+          </li>
+        </ol>
+        <p class="caption" data-en="Tasks imported before you connected keep their old author and assignee until a project admin runs &lt;strong&gt;Import all&lt;/strong&gt; (2-4). Matching only works for members of the workspace or project, and an assignee must be a project member.">계정을 연결하기 전에 가져온 태스크는 프로젝트 관리자가 <strong>전체 가져오기</strong>(2-4)를 실행해야 작성자·담당자가 바뀝니다. 매칭은 워크스페이스·프로젝트 멤버만 대상이며, 담당자로 매칭되려면 프로젝트 멤버여야 합니다.</p>
+      </div>
+    </section>
+
+    <!-- ========== 04 tasks ========== -->
+
+    <div class="sec-head" id="s4">
+      <div class="sec-n">04</div>
+      <h2 data-en="Using it from a task">태스크에서 사용하기</h2>
+      <p data-en="Once a repository is linked, the task detail panel gets a GitHub section at the top showing the issue and pull requests for that task.">레포가 연결되면 태스크 상세 패널 맨 위에 GitHub 영역이 생겨, 이 태스크의 이슈와 PR이 표시됩니다.</p>
+    </div>
+
+    <section class="block" id="b41">
+      <div class="running"><span data-en="4 Using it from a task · 4-1 What syncs, and which way">4 태스크에서 사용하기 · 4-1 동기화 방향</span></div>
+      <h3 data-en="What syncs, and which way">동기화 방향</h3>
+      <p class="sub" data-en="GitHub → GDC is always on. GDC → GitHub is a per-issue switch.">GitHub → GDC는 항상 반영되고, GDC → GitHub는 이슈마다 켜고 끕니다.</p>
+
+      <div class="tbl-wrap">
+        <table class="kv">
+          <thead>
+            <tr>
+              <th data-en="Direction">방향</th>
+              <th data-en="What is reflected">반영되는 내용</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GitHub → GDC</td>
+              <td data-en="Issue title, body, open/closed state, assignees, labels, and comments — in real time. An issue deleted on GitHub hides (archives) its task rather than deleting it.">이슈 제목·본문·열림/닫힘·담당자·라벨·댓글이 실시간으로 반영됩니다. GitHub에서 이슈를 삭제하면 태스크는 삭제되지 않고 숨김(보관) 처리됩니다.</td>
+            </tr>
+            <tr>
+              <td>GDC → GitHub</td>
+              <td data-en="Title, description, status (as open/closed), assignee, type, priority, and comments — only when the issue’s &lt;strong&gt;Push GDC changes to GitHub&lt;/strong&gt; switch is on. Dates and progress are not sent.">제목·설명·상태(열림/닫힘으로)·담당자·유형·우선순위·댓글이 반영됩니다. 단, 이슈 줄의 <strong>GDC 변경을 GitHub에 반영</strong> 스위치가 켜져 있을 때만입니다. 일정·진행률은 반영되지 않습니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <p data-en="&lt;strong&gt;The switch starts differently.&lt;/strong&gt; Issues &lt;strong&gt;imported&lt;/strong&gt; from GitHub start with it &lt;strong&gt;off&lt;/strong&gt;; issues &lt;strong&gt;published&lt;/strong&gt; from GDC start with it &lt;strong&gt;on&lt;/strong&gt;. If your GDC edits are not showing up on GitHub, check this switch first."><strong>스위치의 기본값이 다릅니다.</strong> GitHub에서 <strong>가져온</strong> 이슈는 <strong>꺼진</strong> 상태로, GDC에서 <strong>발행한</strong> 이슈는 <strong>켜진</strong> 상태로 시작합니다. GDC에서 고친 내용이 GitHub에 보이지 않으면 이 스위치부터 확인합니다.</p>
+      </div>
+    </section>
+
+    <section class="block" id="b42">
+      <div class="running"><span data-en="4 Using it from a task · 4-2 Publish as a GitHub issue">4 태스크에서 사용하기 · 4-2 GitHub 이슈로 발행</span></div>
+      <h3 data-en="Publish as a GitHub issue">GitHub 이슈로 발행</h3>
+      <p class="sub" data-en="Turn a GDC task into a GitHub issue. A task can have one issue.">GDC 태스크를 GitHub 이슈로 만듭니다. 태스크 하나에 이슈 하나만 연결됩니다.</p>
+
+      <div class="solo">
+        <ol class="steps">
+          <li class="step">
+            <div class="num">1</div>
+            <p data-en="In the task’s GitHub section, click &lt;strong&gt;Publish issue&lt;/strong&gt;.">태스크의 GitHub 영역에서 <strong>이슈 발행</strong>을 누릅니다.</p>
+          </li>
+          <li class="step">
+            <div class="num">2</div>
+            <p data-en="Pick the repository (chosen for you if there is only one) and leave &lt;strong&gt;Keep pushing GDC changes to GitHub after publishing&lt;/strong&gt; on unless you want a one-off copy.">레포를 고릅니다(하나뿐이면 자동 선택). 한 번만 옮기고 끝낼 것이 아니라면 <strong>발행 후에도 GDC 변경을 GitHub에 계속 반영합니다</strong>를 켜 둡니다.</p>
+          </li>
+          <li class="step">
+            <div class="num">3</div>
+            <p data-en="Click &lt;strong&gt;Publish&lt;/strong&gt;. The issue is created a moment later, with a link back to the GDC task at the top."><strong>발행</strong>을 누릅니다. 잠시 후 이슈가 만들어지며, 이슈 맨 위에 GDC 태스크 링크가 붙습니다.</p>
+          </li>
+        </ol>
+        <p class="caption" data-en="You can also tick “GitHub 이슈로 발행” (publish as GitHub issue) when creating a task. Images and attachments in the body cannot be copied and are replaced by GDC links. Labels are applied only when a matching label already exists in the repository, and the assignee only when they have connected their GitHub account and have access to the repository.">태스크를 만들 때 「GitHub 이슈로 발행」을 선택해 바로 발행할 수도 있습니다. 본문의 이미지·첨부는 GitHub으로 옮길 수 없어 GDC 링크로 대체됩니다. 라벨은 레포에 같은 라벨이 있을 때만, 담당자는 GitHub 계정을 연결했고 레포 권한이 있을 때만 반영됩니다.</p>
+      </div>
+    </section>
+
+    <section class="block" id="b43">
+      <div class="running"><span data-en="4 Using it from a task · 4-3 Link a pull request">4 태스크에서 사용하기 · 4-3 PR 연결</span></div>
+      <h3 data-en="Link a pull request">PR 연결</h3>
+      <p class="sub" data-en="Attach one or more pull requests to a task by hand.">태스크에 PR을 직접 연결합니다. 여러 개를 연결할 수 있습니다.</p>
+
+      <div class="solo">
+        <ol class="steps">
+          <li class="step">
+            <div class="num">1</div>
+            <p data-en="In the task’s GitHub section, click &lt;strong&gt;Link PR&lt;/strong&gt;.">태스크의 GitHub 영역에서 <strong>PR 연결</strong>을 누릅니다.</p>
+          </li>
+          <li class="step">
+            <div class="num">2</div>
+            <p data-en="Pick a recent PR from the list, or type its number under “목록에 없나요? 번호를 직접 입력하세요.” (not listed? enter the number).">최근 PR 목록에서 고르거나, 「목록에 없나요? 번호를 직접 입력하세요.」에 PR 번호를 넣고 연결합니다.</p>
+          </li>
+          <li class="step">
+            <div class="num">3</div>
+            <p data-en="The PR shows with its state: &lt;code&gt;open&lt;/code&gt;, &lt;code&gt;draft&lt;/code&gt;, &lt;code&gt;merged&lt;/code&gt;, or &lt;code&gt;closed&lt;/code&gt;. To remove it, hover the row and click &lt;strong&gt;Unlink&lt;/strong&gt;.">연결된 PR은 상태(<code>open</code>·<code>draft</code>·<code>merged</code>·<code>closed</code>)와 함께 표시됩니다. 해제하려면 PR 줄에 마우스를 올리고 <strong>연결 해제</strong>를 누릅니다.</p>
+          </li>
+        </ol>
+        <p class="caption" data-en="The PR state does not change the task’s status — merging a PR does not complete the task, so update the status yourself.">PR 상태는 태스크 상태를 바꾸지 않습니다. PR이 병합되어도 태스크가 완료되지 않으니 상태는 직접 바꿉니다.</p>
+      </div>
+    </section>
+
+    <section class="block" id="b44">
+      <div class="running"><span data-en="4 Using it from a task · 4-4 Automatic PR links">4 태스크에서 사용하기 · 4-4 PR 자동 연결</span></div>
+      <h3 data-en="Automatic PR links">PR 자동 연결</h3>
+      <p class="sub" data-en="Write the task in the PR title or body and the link happens by itself. Branch names are not read.">PR 제목이나 본문에 태스크를 적어 두면 자동으로 연결됩니다. 브랜치 이름은 보지 않습니다.</p>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-en="Write this">적는 방법</th>
+              <th data-en="Example">예시</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-en="The GDC task link — no keyword needed">GDC 태스크 링크 (키워드 불필요)</td>
+              <td><code>https://gdc.gemiso.com/…/tasks/1234</code></td>
+            </tr>
+            <tr>
+              <td data-en="A keyword followed by an issue reference, on the same line">키워드 + 이슈 참조 (같은 줄)</td>
+              <td><code>관련 이슈: #15</code> · <code>Fixes #12, #13</code> · <code>closes owner/repo#7</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="caption" data-en="Keywords: &lt;code&gt;closes&lt;/code&gt; &lt;code&gt;fixes&lt;/code&gt; &lt;code&gt;resolves&lt;/code&gt; (and their other forms), &lt;code&gt;관련 이슈&lt;/code&gt; &lt;code&gt;연관 이슈&lt;/code&gt; &lt;code&gt;관련 태스크&lt;/code&gt; &lt;code&gt;관련 작업&lt;/code&gt;. The issue must already be linked to a task in the same project. Text inside code blocks and quotes is ignored.">키워드: <code>closes</code>·<code>fixes</code>·<code>resolves</code>(과거형 등 포함), <code>관련 이슈</code>·<code>연관 이슈</code>·<code>관련 태스크</code>·<code>관련 작업</code>. 참조한 이슈가 같은 프로젝트의 태스크와 이미 연결되어 있어야 합니다. 코드 블록·인용문 안의 글은 무시합니다.</p>
+      <div class="note">
+        <p data-en="&lt;strong&gt;To undo an automatic link, edit the PR, not GDC.&lt;/strong&gt; Removing the link or reference from the PR body removes the link. If you only unlink it in GDC, it comes back the next time the PR is edited."><strong>자동 연결을 풀려면 GDC가 아니라 PR을 고칩니다.</strong> PR 본문에서 링크·참조를 지우면 연결도 풀립니다. GDC에서만 해제하면 PR이 수정될 때 다시 연결됩니다.</p>
+      </div>
+    </section>
+
+    <!-- ========== 05 troubleshooting ========== -->
+
+    <div class="sec-head" id="s5">
+      <div class="sec-n">05</div>
+      <h2 data-en="Troubleshooting">자주 묻는 문제</h2>
+      <p data-en="What to check first when something will not work.">막혔을 때 먼저 확인할 것들입니다.</p>
+    </div>
+
+    <div class="qa">
+      <div class="q-t" data-en="The repository list is empty (“레포를 찾을 수 없습니다.”)">레포 목록이 비어 있는 경우 (「레포를 찾을 수 없습니다.」)</div>
+      <div class="a-t">
+        <p data-en="Picking a new repository needs workspace owner or manager rights, even for a project admin. Ask a workspace manager to add it.">새 레포를 고르려면 프로젝트 관리자라도 워크스페이스 소유자·관리자 권한이 필요합니다. 워크스페이스 관리자에게 연결을 요청합니다.</p>
+        <p data-en="If you are a manager, the GitHub app may not have access to that repository — check the app’s repository access on GitHub.">관리자인데도 없다면 GitHub 앱에 그 레포 접근이 허용되지 않은 것입니다. GitHub에서 앱의 레포 접근 범위를 확인합니다.</p>
+      </div>
+    </div>
+
+    <div class="qa">
+      <div class="q-t" data-en="“’…’ 프로젝트와 연동된 레포입니다.” — the repository is linked elsewhere">「'…' 프로젝트와 연동된 레포입니다.」가 나오는 경우</div>
+      <div class="a-t">
+        <p data-en="A repository can belong to one project only. Disconnect it in the other project and run &lt;strong&gt;Clean up&lt;/strong&gt; there first (2-4).">레포 하나는 프로젝트 하나에만 연결됩니다. 기존 프로젝트에서 연동 해제 후 <strong>완전히 정리</strong>(2-4)를 먼저 합니다.</p>
+      </div>
+    </div>
+
+    <div class="qa">
+      <div class="q-t" data-en="“다른 워크스페이스가 사용 중인 설치입니다.” — the installation is in use">「다른 워크스페이스가 사용 중인 설치입니다.」가 나오는 경우</div>
+      <div class="a-t">
+        <p data-en="An installation can be connected to one workspace only. Remove it from the other workspace first (1-2).">설치 하나는 워크스페이스 하나에만 연결됩니다. 다른 워크스페이스에서 설치를 먼저 해제합니다(1-2).</p>
+      </div>
+    </div>
+
+    <div class="qa">
+      <div class="q-t" data-en="“GitHub 설치가 비활성 상태입니다.” — the installation is inactive">「GitHub 설치가 비활성 상태입니다.」가 나오는 경우</div>
+      <div class="a-t">
+        <p data-en="The installation was removed or its permission was withdrawn on GitHub. A workspace manager clicks &lt;strong&gt;Reconnect&lt;/strong&gt; under Workspace Settings → Other. Repository and issue links come back as they were.">설치가 해제되었거나 GitHub에서 권한이 회수된 상태입니다. 워크스페이스 관리자가 워크스페이스 설정 → 기타에서 <strong>다시 연결</strong>을 누르면 레포·이슈 연결이 그대로 복원됩니다.</p>
+      </div>
+    </div>
+
+    <div class="qa">
+      <div class="q-t" data-en="I connected my GitHub account but old tasks still show the bot">계정을 연결했는데 기존 태스크의 담당자·작성자가 그대로인 경우</div>
+      <div class="a-t">
+        <p data-en="Connecting an account affects new activity only. A project admin runs &lt;strong&gt;Import all&lt;/strong&gt; on the repository row to re-apply the mapping to tasks already imported.">계정 연결은 이후 변경에만 적용됩니다. 프로젝트 관리자가 레포 줄에서 <strong>전체 가져오기</strong>를 실행하면 이미 가져온 태스크에도 다시 적용됩니다.</p>
+      </div>
+    </div>
+
+    <div class="qa">
+      <div class="q-t" data-en="My GDC edits do not appear on GitHub">GDC에서 고친 내용이 GitHub에 반영되지 않는 경우</div>
+      <div class="a-t">
+        <p data-en="Check the issue’s &lt;strong&gt;Push GDC changes to GitHub&lt;/strong&gt; switch — it is off for imported issues. Also check the repository is not paused (2-4). Dates and progress are never sent.">이슈 줄의 <strong>GDC 변경을 GitHub에 반영</strong> 스위치를 확인합니다. 가져온 이슈는 꺼진 상태로 시작합니다. 레포 동기화가 일시중지되지 않았는지도 확인합니다(2-4). 일정·진행률은 원래 반영되지 않습니다.</p>
+      </div>
+    </div>
+
+    <div class="qa last">
+      <div class="q-t" data-en="The PR list says the app has no Pull requests read permission">PR 목록에 「GitHub App에 Pull requests 읽기 권한이 없습니다.」가 나오는 경우</div>
+      <div class="a-t">
+        <p data-en="The GitHub app needs the &lt;code&gt;Pull requests: Read-only&lt;/code&gt; permission and the &lt;code&gt;Pull request&lt;/code&gt; event, re-approved on the installation. Ask the organisation admin who manages the app.">GitHub 앱에 <code>Pull requests: Read-only</code> 권한과 <code>Pull request</code> 이벤트 구독이 추가되고, 설치에서 재승인되어야 합니다. 앱을 관리하는 조직 관리자에게 요청합니다.</p>
+      </div>
+    </div>
+
+    <!-- ========== 06 learn more ========== -->
+
+    <div class="sec-head" id="s6">
+      <div class="sec-n">06</div>
+      <h2 data-en="Learn more">더 알아보기</h2>
+      <p data-en="The other GDC guides pick up from here.">GDC의 다른 안내서로 이어집니다.</p>
+    </div>
+
+    <div class="more">
+      <a href="https://seonmikii.github.io/gdc-claude-plugin/manual.html">
+        <b data-en="GDC user manual">GDC 사용 매뉴얼</b>
+        <span data-en="How GDC is organised, and what each sidebar tab does and who can see it — with screenshots.">GDC의 구성 단위와 사이드바 각 탭의 역할·권한을 화면과 함께 안내합니다.</span>
+      </a>
+      <a href="https://seonmikii.github.io/gdc-claude-plugin/">
+        <b data-en="GDC MCP plugin user guide">GDC MCP 플러그인 사용 안내서</b>
+        <span data-en="Look up and create GDC tasks from the Claude Code or Claude Desktop chat, and link work-request documents to tasks.">Claude Code·Claude 데스크탑 앱의 대화창에서 GDC 태스크를 조회·생성하고, 작업 요청 문서와 태스크를 연결하는 방법을 안내합니다.</span>
+      </a>
+      <a href="https://seonmikii.github.io/gdc-claude-plugin/webhook.html">
+        <b data-en="GDC webhook setup guide">GDC 웹훅 연동 안내서</b>
+        <span data-en="Create a Mattermost channel and Incoming Webhook for notifications, then register it in GDC’s notification settings.">Mattermost에 알림 전용 채널과 Incoming Webhook을 만들고 GDC 알림 설정에 등록하는 방법을 안내합니다.</span>
+      </a>
+    </div>
+
+    <div class="foot">
+      <span>GDC <span data-en="GitHub integration guide">GitHub 연동 안내서</span> · v1.0</span>
+      <span data-en="Based on the production release (gdc.gemiso.com), October 2026">운영 배포(gdc.gemiso.com) 기준 · 2026년 10월</span>
+    </div>
+
+  </main>
+
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+
+    function remember(key, value) {
+      try { localStorage.setItem(key, value); } catch (e) { /* private mode -- fine */ }
+    }
+
+    var lang = root.getAttribute("data-lang");
+
+    function applyLang(next) {
+      lang = next;
+      root.setAttribute("data-lang", next);
+
+      document.querySelectorAll("[data-en]").forEach(function (el) {
+        if (!el.hasAttribute("data-ko")) el.setAttribute("data-ko", el.innerHTML);
+        el.innerHTML = el.getAttribute(next === "en" ? "data-en" : "data-ko");
+      });
+
+      document.querySelectorAll("img.shot").forEach(function (el) {
+        el.setAttribute("title", next === "en" ? "Click to enlarge" : "\ud074\ub9ad\ud558\uba74 \ud06c\uac8c \ubcfc \uc218 \uc788\uc2b5\ub2c8\ub2e4");
+      });
+
+      document.querySelectorAll("[data-lang-pick]").forEach(function (b) {
+        b.setAttribute("aria-pressed", b.getAttribute("data-lang-pick") === next ? "true" : "false");
+      });
+
+      remember("gdc-guide-lang", next);
+    }
+
+    applyLang(lang);
+
+    document.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-lang-pick]");
+      if (!btn) return;
+      applyLang(btn.getAttribute("data-lang-pick"));
+    });
+  })();
+
+  /* ---------------- scrollspy over section and block anchors ---------------- */
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll(".toc a[href^='#']"));
+    if (!links.length || !("IntersectionObserver" in window)) return;
+
+    var visible = {};
+
+    function paint() {
+      var current = null;
+      links.forEach(function (a) {
+        if (visible[a.getAttribute("href").slice(1)]) current = a;
+      });
+      links.forEach(function (a) { a.classList.toggle("on", a === current); });
+    }
+
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { visible[e.target.id] = e.isIntersecting; });
+      paint();
+    }, { rootMargin: "-8% 0px -62% 0px", threshold: 0 });
+
+    links.forEach(function (a) {
+      var el = document.getElementById(a.getAttribute("href").slice(1));
+      if (el) io.observe(el);
+    });
+
+    links[0].classList.add("on");
+  })();
+
+  /* ---------------- click a screenshot to see it larger ---------------- */
+  (function () {
+    var box = null;
+
+    function close() {
+      if (!box) return;
+      box.parentNode.removeChild(box);
+      box = null;
+      document.removeEventListener("keydown", onKey);
+    }
+
+    function onKey(e) { if (e.key === "Escape") close(); }
+
+    function open(img) {
+      close();
+
+      var root = document.documentElement;
+      var docH = Math.max(root.scrollHeight, document.body.scrollHeight);
+      var width = Math.min(1180, root.clientWidth * 0.94);
+      var ratio = img.naturalWidth ? img.naturalHeight / img.naturalWidth : 0.66;
+      var height = width * ratio + 34;
+
+      var rect = img.getBoundingClientRect();
+      var centre = rect.top + window.scrollY + rect.height / 2;
+      var top = Math.max(16, Math.min(centre - height / 2, docH - height - 16));
+
+      box = document.createElement("div");
+      box.className = "lightbox";
+      box.style.height = docH + "px";
+
+      var inner = document.createElement("div");
+      inner.className = "lightbox-inner";
+      inner.style.width = Math.round(width) + "px";
+      inner.style.top = Math.round(top) + "px";
+
+      var btn = document.createElement("button");
+      btn.className = "lightbox-close";
+      btn.type = "button";
+      btn.textContent = root.getAttribute("data-lang") === "en" ? "Close \u2715" : "\ub2eb\uae30 \u2715";
+
+      var big = document.createElement("img");
+      big.src = img.src;
+      big.alt = img.alt;
+
+      inner.appendChild(btn);
+      inner.appendChild(big);
+      box.appendChild(inner);
+      document.body.appendChild(box);
+
+      btn.focus();
+      document.addEventListener("keydown", onKey);
+    }
+
+    document.addEventListener("click", function (e) {
+      if (box) { close(); return; }
+      var img = e.target.closest("img.shot");
+      if (img) open(img);
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      var img = e.target.closest && e.target.closest("img.shot");
+      if (!img) return;
+      e.preventDefault();
+      open(img);
+    });
+
+    document.querySelectorAll("img.shot").forEach(function (img) {
+      img.setAttribute("tabindex", "0");
+      img.setAttribute("role", "button");
+    });
+  })();
+</script>
+
+</body>
+</html>
