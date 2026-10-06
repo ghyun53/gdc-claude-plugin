@@ -752,6 +752,17 @@
   .note strong { color: var(--ink); font-weight: 700; }
   .note p + p { margin-top: 10px; }
 
+  /* ---------- further reading ---------- */
+
+  .more { margin-top: 26px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .more a { display: block; padding: 18px 20px; border: 1px solid var(--rule); border-radius: 8px; color: inherit; text-decoration: none; }
+  .more a:hover { border-color: var(--accent); }
+  .more a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .more b { display: flex; justify-content: space-between; gap: 12px; font-size: 16.5px; font-weight: 750; letter-spacing: -0.01em; color: var(--ink); }
+  .more b::after { content: "→"; color: var(--accent); }
+  .more span { display: block; margin-top: 6px; font-size: 14.5px; color: var(--soft); }
+  @media (max-width: 640px) { .more { grid-template-columns: 1fr; } }
+
   /* ---------- footer ---------- */
 
   .foot {
@@ -901,6 +912,9 @@
         <ol>
           <li><a href="#b31" data-en="Register the URL">알림 설정에 URL 등록</a></li>
         </ol>
+      </li>
+      <li>
+        <a href="#s4"><i>04</i><span data-en="Learn more">더 알아보기</span></a>
       </li>
     </ol>
   </nav>
@@ -1169,6 +1183,23 @@
         </div>
       </div>
     </section>
+
+    <div class="sec-head" id="s4">
+      <div class="sec-n">04</div>
+      <h2 data-en="Learn more">더 알아보기</h2>
+      <p data-en="The other GDC guides pick up from here.">GDC의 다른 안내서로 이어집니다.</p>
+    </div>
+
+    <div class="more">
+      <a href="https://seonmikii.github.io/gdc-claude-plugin/manual.html">
+        <b data-en="GDC user manual">GDC 사용 매뉴얼</b>
+        <span data-en="How GDC is organised, and what each sidebar tab does and who can see it — with screenshots.">GDC의 구성 단위와 사이드바 각 탭의 역할·권한을 화면과 함께 안내합니다.</span>
+      </a>
+      <a href="https://seonmikii.github.io/gdc-claude-plugin/">
+        <b data-en="GDC MCP plugin user guide">GDC MCP 플러그인 사용 안내서</b>
+        <span data-en="Look up and create GDC tasks from the Claude Code or Claude Desktop chat, and link work-request documents to tasks.">Claude Code·Claude 데스크탑 앱의 대화창에서 GDC 태스크를 조회·생성하고, 작업 요청 문서와 태스크를 연결하는 방법을 안내합니다.</span>
+      </a>
+    </div>
 
     <div class="foot">
       <span>GDC <span data-en="webhook setup guide">웹훅 연동 안내서</span> · v1.0</span>
