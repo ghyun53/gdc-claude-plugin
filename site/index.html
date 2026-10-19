@@ -358,7 +358,7 @@
   }
 
   .quick-list li {
-    display: grid; grid-template-columns: 22px 92px minmax(0, 1fr);
+    display: grid; grid-template-columns: 22px 124px minmax(0, 1fr);
     gap: 12px; align-items: start;
   }
 
@@ -372,6 +372,10 @@
 
   .qt { font-size: 14.5px; font-weight: 650; margin-top: 3px; }
   .quick code.blk { margin-top: 0; background: var(--ground); }
+
+  /* the install commands run back to back, but each is pasted on its own —
+     so every line is its own copy target */
+  .cmdlines { display: flex; flex-direction: column; gap: 4px; }
   .qhint { display: block; margin-top: 7px; font-size: 13px; color: var(--soft); }
 
   .quick-foot {
@@ -1010,7 +1014,7 @@
 
     <section class="quick e-code">
       <div class="quick-h" data-en="Quick start">바로 시작하기</div>
-      <p class="quick-lead" data-en="Four steps from install to a verified connection. Click any command to copy it.">설치부터 연결 확인까지 네 단계입니다. 커맨드를 클릭하면 복사됩니다.</p>
+      <p class="quick-lead" data-en="Five steps from install to a verified connection. Click any command to copy it.">설치부터 연결 확인까지 다섯 단계입니다. 커맨드를 클릭하면 복사됩니다.</p>
 
       <ol class="quick-list">
         <li>
@@ -1020,13 +1024,20 @@
         </li>
         <li>
           <span class="qn">2</span>
-          <span class="qt" data-en="Install">설치</span>
-          <code class="blk">/plugin marketplace add seonmikii/gdc-claude-plugin
-/plugin install gdc-claude-plugin@gdc-marketplace
-/reload-plugins</code>
+          <span class="qt" data-en="Start Claude">클로드 CLI 접속</span>
+          <code class="blk">/claude</code>
         </li>
         <li>
           <span class="qn">3</span>
+          <span class="qt" data-en="Install">설치</span>
+          <div class="cmdlines">
+            <code class="blk">/plugin marketplace add seonmikii/gdc-claude-plugin</code>
+            <code class="blk">/plugin install gdc-claude-plugin@gdc-marketplace</code>
+            <code class="blk">/reload-plugins</code>
+          </div>
+        </li>
+        <li>
+          <span class="qn">4</span>
           <span class="qt" data-en="Sign in">인증</span>
           <div>
             <code class="blk">/gdc-login</code>
@@ -1034,7 +1045,7 @@
           </div>
         </li>
         <li>
-          <span class="qn">4</span>
+          <span class="qn">5</span>
           <span class="qt" data-en="Verify">연결 확인</span>
           <div>
             <code class="blk">/mcp</code>
