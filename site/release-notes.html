@@ -212,6 +212,22 @@
 
   footer { text-align: center; font-size: 13px; color: var(--faint); padding-top: 8px; }
 
+  /* per-item "copy link" button: hidden until the item is hovered/focused,
+     so announcement captures of the page stay clean */
+  .copy-link {
+    margin-left: 6px; vertical-align: 2px;
+    display: inline-flex; align-items: center; gap: 4px;
+    font: inherit; font-size: 12px; font-weight: 700; color: var(--faint);
+    background: none; border: 1px solid transparent; border-radius: 6px; padding: 1px 6px;
+    cursor: pointer; opacity: 0; transition: opacity .15s;
+  }
+  .copy-link svg { width: 14px; height: 14px; }
+  .item:hover .copy-link, .copy-link:focus-visible, .copy-link.done { opacity: 1; }
+  .copy-link:hover { color: var(--accent); border-color: var(--rule); }
+  .copy-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .copy-link.done { color: var(--imp); }
+  @media (hover: none) { .copy-link { opacity: 1; } }
+
   @media (max-width: 640px) {
     .wrap { padding: 20px 16px 48px; gap: 14px; }
     .col { gap: 14px; }
@@ -1141,6 +1157,36 @@
     m.querySelectorAll('[data-count]').forEach(function (el) {
       el.textContent = m.querySelectorAll('section .tag.' + el.dataset.count + ', section .note-' + el.dataset.count).length;
     });
+  });
+
+  // A "copy link" button on every item title: copies this page's address
+  // with #<item id>, which opens the right version and scrolls to the item.
+  var ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/></svg>';
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    return new Promise(function (ok, fail) {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy') ? ok() : fail(); } catch (e) { fail(e); }
+      ta.remove();
+    });
+  }
+  document.querySelectorAll('.item h3[id]').forEach(function (h) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'copy-link';
+    b.title = '이 항목 링크 복사';
+    b.setAttribute('aria-label', '「' + h.textContent.trim() + '」 링크 복사');
+    b.innerHTML = ICON;
+    b.addEventListener('click', function () {
+      var url = location.href.split('#')[0] + '#' + h.id;
+      copyText(url).then(function () {
+        b.classList.add('done'); b.innerHTML = ICON + '복사됨';
+        clearTimeout(b._t);
+        b._t = setTimeout(function () { b.classList.remove('done'); b.innerHTML = ICON; }, 1600);
+      }, function () { window.prompt('링크를 복사하세요', url); });
+    });
+    h.appendChild(b);
   });
 
   function show(ver) {
