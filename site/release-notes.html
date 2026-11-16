@@ -1233,6 +1233,19 @@
     a.setAttribute('aria-current', 'location');
     var parent = a.closest('ol ol') && a.closest('ol ol').parentElement.querySelector(':scope > a');
     if (parent) parent.classList.add('on');
+    followToc(a);
+  }
+
+  // Keep the active TOC entry visible: the left column scrolls on its own
+  // (sticky, overflow-y: auto), so scroll it - never the page - when the entry
+  // falls outside it, e.g. after opening an #item link from an announcement.
+  var side = document.querySelector('.side');
+  function followToc(a) {
+    if (!side || side.scrollHeight <= side.clientHeight) return;
+    var s = side.getBoundingClientRect(), r = a.getBoundingClientRect(), pad = 48;
+    if (r.top < s.top + pad || r.bottom > s.bottom - pad) {
+      side.scrollTop += (r.top + r.height / 2) - (s.top + s.height / 2);
+    }
   }
 
   window.addEventListener('scroll', function () {
